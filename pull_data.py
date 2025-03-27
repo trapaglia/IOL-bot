@@ -53,7 +53,7 @@ def update_token():
     bearer = response.json()["access_token"]
     refresh = response.json()["refresh_token"]
 
-def call_api(api_url):
+def call_api(api_url, data=None):
     global bearer
     headers = {
         "Authorization": f"Bearer {bearer}",
@@ -82,13 +82,19 @@ def get_estado_cuenta():
     print(f"Pesos disponibles: ahora: {saldos_arg[0]['disponible']} en 24hs: {saldos_arg[1]['disponible']} en 48hs: {saldos_arg[2]['disponible']}, comprometido: {saldos_arg[0]['comprometido']}")
     saldos_dol = rsp['cuentas'][1]['saldos']
     print(f"Dolares disponibles: ahora: {saldos_dol[0]['disponible']} en 24hs: {saldos_dol[1]['disponible']} en 48hs: {saldos_dol[2]['disponible']}, comprometido: {saldos_dol[0]['comprometido']}")
-    print(f"Titulos valorizados a peso: {rsp['cuentas'][0]['titulosValorizados']}, total: {rsp['cuentas'][0]['total']}")
+    print(f"Titulos valorizados a peso: {format(rsp['cuentas'][0]['titulosValorizados'], ',.2f')}, total: {format(rsp['cuentas'][0]['total'], ',.2f')}")
 
 def get_portafolio():
     api_url = "https://api.invertironline.com/api/v2/portafolio/argentina"
-    rsp = call_api(api_url)
+    rsp = call_api(api_url, data={"pais": "argentina"})
+    print(rsp)
+
+def get_mep():
+    api_url = "https://api.invertironline.com/api/v2/Cotizaciones/MEP"
+    rsp = call_api(api_url, data={"pais": "argentina"})
     print(rsp)
 
 get_token()
 get_estado_cuenta()
 get_portafolio()
+get_mep()
