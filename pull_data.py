@@ -90,11 +90,43 @@ def get_portafolio():
     print(rsp)
 
 def get_mep():
-    api_url = "https://api.invertironline.com/api/v2/Cotizaciones/MEP"
-    rsp = call_api(api_url, data={"pais": "argentina"})
+    api_url = "https://api.invertironline.com/api/v2/Cotizaciones/MEP/AL30"
+    rsp = call_api(api_url, data={})
     print(rsp)
+
+def get_cotizacion(simbolo):
+    api_url = f"https://api.invertironline.com/api/v2/bCBA/Titulos/{simbolo}/CotizacionDetalle"
+    rsp = call_api(api_url, data={})
+    print(rsp['ultimoPrecio'], rsp["puntas"][0]["precioVenta"]-rsp["puntas"][0]["precioCompra"])
 
 get_token()
 get_estado_cuenta()
 get_portafolio()
 get_mep()
+
+while True:
+    for indice, ticket in enumerate(tracked_tickets):
+        precio, spread = get_cotizacion(ticket["ticket"])
+        if ticket["estado"] == "afuera":
+            if precio < ticket["precio_compra_1"]:
+                tracked_tickets[indice]["estado"] = "adentro_1" # Comprar
+        elif ticket["estado"] == "adentro_1":
+            if precio > ticket["precio_compra_2"]:
+                tracked_tickets[indice]["estado"] = "adentro_2" # Comprar
+        
+        if ticket["estado"] == "adentro_2" or ticket["estado"] == "adentro_1":
+            if precio > ticket["precio_venta_1"]:
+                tracked_tickets[indice]["estado"] = "afuera" # Vender
+            elif precio < ticket["precio_venta_2"]:
+                tracked_tickets[indice]["estado"] = "adentro_1" # Vender
+
+
+
+    time.sleep(10)
+
+
+
+
+tracked_tickets = [{"ticket": "AAPL", "pais": "argentina", "estado": "afuera", "esperando_precio": 2, 
+                    "precio_compra_1": 12140, "precio_compra_2": 10725, "ratio": 0.05, 
+                    "precio_venta_1": 15275, "precio_venta_2": 16055}]
