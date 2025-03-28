@@ -1,11 +1,14 @@
 import requests
 from dotenv import load_dotenv
 import os
+import time
+from database import Database
 
 load_dotenv()
 
 bearer = None
 refresh = None
+db = Database()
 
 def get_token():
     global bearer, refresh
@@ -104,29 +107,41 @@ get_estado_cuenta()
 get_portafolio()
 get_mep()
 
+configuraciones = {"porcentaje_libre": 0.2, "stop_loss": 0.5}
+
 while True:
-    for indice, ticket in enumerate(tracked_tickets):
+    tracked_tickets = db.get_all_tickets()
+    for ticket in tracked_tickets:
         precio, spread = get_cotizacion(ticket["ticket"])
         if ticket["estado"] == "afuera":
             if precio < ticket["precio_compra_1"]:
-                tracked_tickets[indice]["estado"] = "adentro_1" # Comprar
+                db.update_ticket_state(ticket["ticket"], "adentro_1")  # Comprar
         elif ticket["estado"] == "adentro_1":
             if precio > ticket["precio_compra_2"]:
-                tracked_tickets[indice]["estado"] = "adentro_2" # Comprar
+                db.update_ticket_state(ticket["ticket"], "adentro_2")  # Comprar
         
         if ticket["estado"] == "adentro_2" or ticket["estado"] == "adentro_1":
             if precio > ticket["precio_venta_1"]:
-                tracked_tickets[indice]["estado"] = "afuera" # Vender
+                db.update_ticket_state(ticket["ticket"], "afuera")  # Vender
             elif precio < ticket["precio_venta_2"]:
-                tracked_tickets[indice]["estado"] = "adentro_1" # Vender
-
-
+                db.update_ticket_state(ticket["ticket"], "adentro_1")  # Vender
 
     time.sleep(10)
 
+# Inicializar la base de datos con los tickets iniciales
+initial_tickets = [
+    {
+        "ticket": "AAPL",
+        "pais": "argentina",
+        "estado": "afuera",
+        "esperando_precio": 2,
+        "precio_compra_1": 12140,
+        "precio_compra_2": 10725,
+        "ratio": 0.05,
+        "precio_venta_1": 15275,
+        "precio_venta_2": 16055
+    }
+]
 
-
-
-tracked_tickets = [{"ticket": "AAPL", "pais": "argentina", "estado": "afuera", "esperando_precio": 2, 
-                    "precio_compra_1": 12140, "precio_compra_2": 10725, "ratio": 0.05, 
-                    "precio_venta_1": 15275, "precio_venta_2": 16055}]
+for ticket in initial_tickets:
+    db.add_ticket(ticket)
