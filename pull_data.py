@@ -3,11 +3,13 @@ from dotenv import load_dotenv
 import os
 import time
 from database import Database
+from datetime import datetime
 
 load_dotenv()
 
 bearer = None
 refresh = None
+dinero_disponible = 0
 db = Database()
 
 def get_token():
@@ -69,7 +71,8 @@ def call_api(api_url, data=None):
         print("API call successful")
     else:
         print("Renovando token...")
-        update_token()
+        get_token()
+        headers["Authorization"] = f"Bearer {bearer}"
         response = requests.get(api_url, headers=headers)
 
         if response.status_code != 200:
@@ -102,6 +105,30 @@ def get_cotizacion(simbolo):
     rsp = call_api(api_url, data={})
     print(rsp['ultimoPrecio'], rsp["puntas"][0]["precioVenta"]-rsp["puntas"][0]["precioCompra"])
 
+def comprar(simbolo, cantidad, precio):
+    api_url = "https://api.invertironline.com/api/v2/Comprar"
+    # ver de elejir el mejor plazo
+    hoy = datetime.now()
+    expira = hoy + timedelta(days=29)
+
+    data = {"mercado": "bCBA", "simbolo": simbolo, "cantidad": cantidad, "precio": precio, "plazo": "t1",
+            "validez": f"{expira.year}-{expira.month}-{expira.day}:00:00.000Z", "tipoOrden": "precioLimite"}#, "monto": cantidad*precio }
+    rsp = call_api(api_url, data=data)
+    print(rsp)
+    return rsp
+
+def vender(simbolo, cantidad, precio):
+    api_url = "https://api.invertironline.com/api/v2/Vender"
+    # ver de elejir el mejor plazo
+    hoy = datetime.now()
+    expira = hoy + timedelta(days=29)
+
+    data = {"mercado": "bCBA", "simbolo": simbolo, "cantidad": cantidad, "precio": precio, "plazo": "t1",
+            "validez": f"{expira.year}-{expira.month}-{expira.day}:00:00.000Z", "tipoOrden": "precioLimite"}#, "monto": cantidad*precio }
+    rsp = call_api(api_url, data=data)
+    print(rsp)
+    return rsp
+
 get_token()
 get_estado_cuenta()
 get_portafolio()
@@ -116,15 +143,19 @@ while True:
         if ticket["estado"] == "afuera":
             if precio < ticket["precio_compra_1"]:
                 db.update_ticket_state(ticket["ticket"], "adentro_1")  # Comprar
+                comprar(ticket["ticket"], 1, precio)
         elif ticket["estado"] == "adentro_1":
             if precio > ticket["precio_compra_2"]:
                 db.update_ticket_state(ticket["ticket"], "adentro_2")  # Comprar
+                comprar(ticket["ticket"], 1, precio)
         
         if ticket["estado"] == "adentro_2" or ticket["estado"] == "adentro_1":
             if precio > ticket["precio_venta_1"]:
                 db.update_ticket_state(ticket["ticket"], "afuera")  # Vender
+                vender(ticket["ticket"], 1, precio)
             elif precio < ticket["precio_venta_2"]:
                 db.update_ticket_state(ticket["ticket"], "adentro_1")  # Vender
+                vender(ticket["ticket"], 1, precio)
 
     time.sleep(10)
 
@@ -145,3 +176,8 @@ initial_tickets = [
 
 for ticket in initial_tickets:
     db.add_ticket(ticket)
+
+# To-Do
+# 1. Que se fije en la punta correspondiente, no en el ultimo precio
+# 2. mejor plazo
+# 3. aplicar precio mercado trailing
