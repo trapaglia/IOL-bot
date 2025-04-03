@@ -1,26 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
 
-module MyLib 
+module Api
     ( getCredentials
     , authenticate
-    , AuthResponse(..)
     , callApi
-    , ApiConfig(..)
     , getCotizacion
-    , CotizacionDetalle(..)
-    , Punta(..)
     , getEstadoCuenta
-    , EstadoCuenta(..)
-    , Cuenta(..)
-    , SaldoDetalle(..)
     ) where
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (FromJSON(..), Value(Object), (.:), decode, genericParseJSON, defaultOptions)
+import Data.Aeson (decode)
 import qualified Data.ByteString.Char8 as BC
-import Control.Monad (mzero)
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Status (statusCode)
@@ -28,70 +19,12 @@ import qualified Data.ByteString.Lazy as BL
 import Control.Exception (try)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
-import GHC.Generics
+import Types
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
 globalToken :: IORef (Maybe String)
 globalToken = unsafePerformIO $ newIORef Nothing
-
--- Tipo de dato para almacenar el token
-data AuthResponse = AuthResponse { accessToken :: String }
-    deriving (Show, Generic)
-
-instance FromJSON AuthResponse where
-    parseJSON (Object v) = AuthResponse <$> v .: "access_token"
-    parseJSON _ = mzero
-
--- Tipos para la cotización
-data Punta = Punta
-    { precioCompra :: Double
-    , precioVenta :: Double
-    } deriving (Show, Generic)
-
-instance FromJSON Punta where
-    parseJSON = genericParseJSON defaultOptions
-
-data CotizacionDetalle = CotizacionDetalle
-    { ultimoPrecio :: Double
-    , puntas :: [Punta]
-    } deriving (Show, Generic)
-
-instance FromJSON CotizacionDetalle where
-    parseJSON = genericParseJSON defaultOptions
-
--- Configuración para las llamadas a la API
-data ApiConfig = ApiConfig 
-    { username :: String
-    , password :: String
-    }
-
--- Tipos para el estado de cuenta
-data SaldoDetalle = SaldoDetalle
-    { saldo :: Double
-    , comprometido :: Double
-    , disponible :: Double
-    } deriving (Show, Generic)
-
-instance FromJSON SaldoDetalle where
-    parseJSON = genericParseJSON defaultOptions
-
-data Cuenta = Cuenta
-    { numero :: String
-    , tipo :: String
-    , moneda :: String
-    , saldos :: [SaldoDetalle]
-    } deriving (Show, Generic)
-
-instance FromJSON Cuenta where
-    parseJSON = genericParseJSON defaultOptions
-
-data EstadoCuenta = EstadoCuenta
-    { cuentas :: [Cuenta]
-    } deriving (Show, Generic)
-
-instance FromJSON EstadoCuenta where
-    parseJSON = genericParseJSON defaultOptions
 
 -- Función para obtener las credenciales desde el archivo .env
 getCredentials :: IO (Maybe String, Maybe String)
@@ -137,7 +70,7 @@ authenticate username password = do
             if status == 200
                 then do
                     let body = responseBody response
-                    putStrLn $ "Respuesta recibida: " ++ show body
+                    -- putStrLn $ "Respuesta recibida: " ++ show body
                     -- Extraer el token de la respuesta usando la nueva función
                     let mToken = extractToken body
                     case mToken of
@@ -204,12 +137,15 @@ callApi config apiUrl = do
 
 -- Función para obtener la cotización de un símbolo
 getCotizacion :: ApiConfig -> String -> IO (Maybe CotizacionDetalle)
-getCotizacion config simbolo = do
-    let apiUrl = "https://api.invertironline.com/api/v2/bCBA/Titulos/" ++ simbolo ++ "/CotizacionDetalle"
-    response <- callApi config apiUrl
+getCotizacion config symbol = do
+    response <- callApi config $ "https://api.invertironline.com/api/v2/Cotizaciones/" ++ symbol ++ "/Todos"
     case response of
-        Nothing -> return Nothing
+        Nothing -> do
+            putStrLn "Error al llamar a la API"
+            return Nothing
         Just body -> do
+            -- putStrLn $ "Respuesta: " ++ show body
+            -- return $ decode body
             let cotizacion = decode body :: Maybe CotizacionDetalle
             case cotizacion of
                 Just cot -> do
@@ -231,6 +167,8 @@ getEstadoCuenta config = do
             putStrLn "Error al llamar a la API"
             return Nothing
         Just body -> do
+            -- putStrLn $ "Respuesta: " ++ show body
+            -- return $ decode body
             let estadoCuenta = decode body :: Maybe EstadoCuenta
             case estadoCuenta of
                 Just ec -> do

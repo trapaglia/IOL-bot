@@ -3,9 +3,9 @@
 module Main where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import MyLib (getCredentials, callApi, ApiConfig(..), getCotizacion, getEstadoCuenta)
+import Types (ApiConfig(..))
+import Api (getCredentials, callApi, getCotizacion, getEstadoCuenta)
 import qualified Data.ByteString.Lazy.Char8 as BL
-import Data.Maybe (fromJust)
 
 -- Función principal para probar la autenticación
 main :: IO ()
@@ -26,10 +26,3 @@ main = do
             return ()
             
         _ -> putStrLn "Error: Credenciales no encontradas en .env"
-
-{-
-            response <- callApi config "https://api.invertironline.com/api/v2/estadocuenta"
-            case response of
-                Just body -> putStrLn $ "Respuesta: " ++ BL.unpack body
-                Nothing -> putStrLn "Error al llamar a la API"
--}
