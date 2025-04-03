@@ -23,9 +23,11 @@ instance FromJSON AuthResponse where
 -- Función para obtener las credenciales desde el archivo .env
 getCredentials :: IO (Maybe String, Maybe String)
 getCredentials = do
-    _ <- Dotenv.loadFile Dotenv.defaultConfig
-    username <- lookupEnv "IOL_USER"
-    password <- lookupEnv "IOL_PASS"
+    let envPath = "c:\\Users\\Administrador\\Documents\\proyectos\\IOL bot\\.env"
+    let config = Dotenv.defaultConfig { Dotenv.configPath = [envPath] }
+    result <- Dotenv.loadFile config
+    username <- lookupEnv "IOL_USERNAME"
+    password <- lookupEnv "IOL_PASSWORD"
     return (username, password)
 
 -- Función para realizar la autenticación y obtener el token
@@ -44,6 +46,9 @@ authenticate username password = do
     let params = (defaultParamsClient host (BC.pack ""))
             { clientSupported = defaultSupported { supportedCiphers = ciphersuite_default }
             , clientShared = (clientShared $ defaultParamsClient host (BC.pack "")) { sharedCAStore = mempty }
+            , clientHooks = defaultClientHooks
+                { onServerCertificate = \_ _ _ _ -> return []  -- Acepta cualquier certificado
+                }
             }
 
     -- Create TLS context
