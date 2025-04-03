@@ -6,6 +6,7 @@ module Api
     , callApi
     , getCotizacion
     , getEstadoCuenta
+    , updateTicketMarketData
     ) where
 
 import System.Environment (lookupEnv)
@@ -20,6 +21,8 @@ import Control.Exception (try)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
 import Types
+import Data.Time (getCurrentTime)
+import Utils (getCurrentTimeArgentina)
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
@@ -189,3 +192,19 @@ getEstadoCuenta config = do
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta"
                     return Nothing
+
+-- Actualizar ticket con información del mercado
+updateTicketMarketData :: ApiConfig -> Ticket -> IO (Maybe Ticket)
+updateTicketMarketData config ticket = do
+    maybeCotizacion <- getCotizacion config (ticketName ticket)
+    case maybeCotizacion of
+        Just cotizacion -> do
+            now <- getCurrentTimeArgentina
+            case puntas cotizacion of
+                (p:_) -> return $ Just $ ticket 
+                    { puntaCompra = precioCompra p
+                    , puntaVenta = precioVenta p
+                    , lastUpdate = now
+                    }
+                [] -> return Nothing
+        Nothing -> return Nothing

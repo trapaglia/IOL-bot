@@ -4,16 +4,43 @@ module Main where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
 import Types (ApiConfig(..), EstadoCuenta(..), Estado(..), Precios(..), Ticket(..))
-import Api (getCredentials, getCotizacion, getEstadoCuenta)
+import Api (getCredentials, getCotizacion, getEstadoCuenta, updateTicketMarketData)
 import Database
+import Utils (getCurrentTimeArgentina)
 import qualified Data.Text as T
 import Database.SQLite.Simple (close)
-import Control.Monad (forM_)
-import Data.Time.Clock (getCurrentTime)
+import Control.Monad (forM_, forever, when)
+import Control.Concurrent (threadDelay)
+import Control.Exception (catch, SomeException)
 
 -- Lista de símbolos para obtener cotizaciones
 symbols :: [T.Text]
 symbols = ["GGAL"] --"PAMP", "YPF", "BBAR"]
+
+-- Función para actualizar todos los tickets
+updateAllTickets :: Connection -> ApiConfig -> IO ()
+updateAllTickets conn config = do
+    putStrLn "\nActualizando tickets..."
+    allTickets <- getAllTickets conn
+    forM_ allTickets $ \ticket -> do
+        putStrLn $ "Actualizando " ++ ticketName ticket ++ "..."
+        maybeUpdatedTicket <- updateTicketMarketData config ticket
+        case maybeUpdatedTicket of
+            Just updatedTicket -> do
+                updateTicket conn updatedTicket
+                putStrLn $ "  Compra: " ++ show (puntaCompra updatedTicket)
+                putStrLn $ "  Venta: " ++ show (puntaVenta updatedTicket)
+            Nothing -> putStrLn $ "  Error al actualizar " ++ ticketName ticket
+
+-- Bucle principal del programa
+mainLoop :: Connection -> ApiConfig -> IO ()
+mainLoop conn config = forever $ do
+    catch
+        (updateAllTickets conn config)
+        (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
+    
+    -- Esperar 30 segundos
+    threadDelay (30 * 1000000)  -- threadDelay toma microsegundos
 
 main :: IO ()
 main = do
@@ -21,11 +48,8 @@ main = do
     hSetBuffering stderr NoBuffering
 
     -- Inicializar base de datos
-    -- putStrLn "Inicializando base de datos..."
-    -- conn <- initializeDatabase
     putStrLn "Conectando a la base de datos..."
     conn <- connectDatabase
-    -- conn <- resetDatabase
 
     -- Obtener credenciales
     (maybeUsername, maybePassword) <- getCredentials
@@ -34,98 +58,30 @@ main = do
             putStrLn "Credentials OK!\n"
             let config = ApiConfig user pass
             
-            -- -- Obtener y guardar estado de cuentas
-            -- putStrLn "\nObteniendo estado de cuenta..."
-            -- maybeEstadoCuenta <- getEstadoCuenta config
-            -- case maybeEstadoCuenta of
-            --     Just ec -> do
-            --         putStrLn "Guardando estado de cuenta en la base de datos..."
-            --         forM_ (cuentas ec) $ \cuenta -> do
-            --             insertEstadoCuenta conn cuenta
-            --     Nothing -> putStrLn "Error al obtener estado de cuenta"
-
-            -- Obtener y guardar cotizaciones
-            -- putStrLn "\nObteniendo cotizaciones..."
-            -- forM_ symbols $ \symbol -> do
-            --     putStrLn $ "Obteniendo cotización para " ++ T.unpack symbol ++ "..."
-            --     maybeCotizacion <- getCotizacion config (T.unpack symbol)
-            --     case maybeCotizacion of
-            --         Just cotizacion -> do
-            --             putStrLn $ "Guardando cotización de " ++ T.unpack symbol ++ " en la base de datos..."
-            --             -- insertCotizacion conn symbol cotizacion
-            --         Nothing -> putStrLn $ "Error al obtener cotización para " ++ T.unpack symbol
-
-            -- -- -- -- -- --  -- ----  --kets
-            putStrLn "\nProbando funcionalidad de tickets..."
-            now <- getCurrentTime
-            let testTicket = Ticket
-                    { ticketName = "GGAL"
-                    , estado = Waiting
-                    , precios = Precios
-                        { compra1 = 1000.0
-                        , compra2 = 950.0
-                        , venta1 = 1100.0
-                        , venta2 = 1200.0
-                        , takeProfit = 1300.0
-                        , stopLoss = 900.0
-                        }
-                    , puntaCompra = 1050.0
-                    , puntaVenta = 1080.0
-                    , lastUpdate = now
-                    }
-
-            putStrLn "Insertando ticket de prueba..."
-            insertTicket conn testTicket
-
-            putStrLn "\nObteniendo ticket específico..."
+            -- Crear ticket de ejemplo si no existe
             maybeTicket <- getTicket conn "GGAL"
-            case maybeTicket of
-                Just ticket -> do
-                    putStrLn $ "Ticket encontrado: " ++ ticketName ticket
-                    putStrLn $ "Estado: " ++ show (estado ticket)
-                    putStrLn $ "Precio compra 1: " ++ show (compra1 $ precios ticket)
-                Nothing -> putStrLn "Ticket no encontrado"
+            when (maybeTicket == Nothing) $ do
+                putStrLn "Creando ticket de ejemplo..."
+                now <- getCurrentTimeArgentina
+                let testTicket = Ticket
+                        { ticketName = "GGAL"
+                        , estado = Waiting
+                        , precios = Precios
+                            { compra1 = 1000.0
+                            , compra2 = 950.0
+                            , venta1 = 1100.0
+                            , venta2 = 1200.0
+                            , takeProfit = 1300.0
+                            , stopLoss = 900.0
+                            }
+                        , puntaCompra = 0.0
+                        , puntaVenta = 0.0
+                        , lastUpdate = now
+                        }
+                insertTicket conn testTicket
 
-            putStrLn "\nActualizando estado del ticket..."
-            let updatedTicket = testTicket { estado = FirstBuy }
-            updateTicket conn updatedTicket
-
-            putStrLn "\nListando todos los tickets..."
-            allTickets <- getAllTickets conn
-            forM_ allTickets $ \ticket -> do
-                putStrLn $ "\nTicket: " ++ ticketName ticket
-                putStrLn $ "Estado: " ++ show (estado ticket)
-                putStrLn $ "Precios:"
-                putStrLn $ "  Compra 1: " ++ show (compra1 $ precios ticket)
-                putStrLn $ "  Compra 2: " ++ show (compra2 $ precios ticket)
-                putStrLn $ "  Venta 1: " ++ show (venta1 $ precios ticket)
-                putStrLn $ "  Venta 2: " ++ show (venta2 $ precios ticket)
-                putStrLn $ "  Take Profit: " ++ show (takeProfit $ precios ticket)
-                putStrLn $ "  Stop Loss: " ++ show (stopLoss $ precios ticket)
-                putStrLn $ "Puntas actuales:"
-                putStrLn $ "  Compra: " ++ show (puntaCompra ticket)
-                putStrLn $ "  Venta: " ++ show (puntaVenta ticket)
-
-            -- Verificar datos guardados
-            -- putStrLn "\nVerificando datos guardados..."
-            
-            -- putStrLn "\nÚltimo estado de cuenta:"
-            -- latestCuentas <- getLatestEstadoCuenta conn
-            -- forM_ latestCuentas $ \cuenta -> do
-            --     putStrLn $ "Cuenta: " ++ T.unpack (cuentaNumero cuenta)
-            --     putStrLn $ "Moneda: " ++ show (cuentaMoneda cuenta)
-            --     putStrLn $ "Saldo disponible: " ++ show (cuentaDisponible cuenta)
-
-            -- putStrLn "\nÚltimas cotizaciones:"
-            -- forM_ symbols $ \symbol -> do
-            --     maybeCotizacion <- getLatestCotizacion conn symbol
-            --     case maybeCotizacion of
-            --         Just cotizacion -> do
-            --             putStrLn $ T.unpack symbol ++ ":"
-            --             putStrLn $ "  Último precio: " ++ show (cotizacionUltimoPrecio cotizacion)
-            --             putStrLn $ "  Spread: " ++ show (cotizacionPrecioVenta cotizacion - cotizacionPrecioCompra cotizacion)
-            --         Nothing -> putStrLn $ "No hay datos para " ++ T.unpack symbol
-            -- Cerrar la conexión
-            close conn
+            -- Iniciar bucle principal
+            putStrLn "\nIniciando bucle principal..."
+            mainLoop conn config
             
         _ -> putStrLn "Error: Credenciales no encontradas en .env"
