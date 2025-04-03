@@ -4,13 +4,11 @@ module MyLib
     ( getCredentials
     , authenticate
     , AuthResponse(..)
-    , callApi
-    , ApiConfig(..)
     ) where
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (FromJSON(..), Value(Object), (.:), decode)
+import Data.Aeson (FromJSON(..), Value(Object), (.:))
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad (mzero)
 import Network.HTTP.Client
@@ -18,13 +16,6 @@ import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Status (statusCode)
 import qualified Data.ByteString.Lazy as BL
 import Control.Exception (try)
-import Data.IORef
-import System.IO.Unsafe (unsafePerformIO)
-
--- Variable global para almacenar el token
-{-# NOINLINE globalToken #-}
-globalToken :: IORef (Maybe String)
-globalToken = unsafePerformIO $ newIORef Nothing
 
 -- Tipo de dato para almacenar el token
 data AuthResponse = AuthResponse { accessToken :: String }
@@ -32,12 +23,6 @@ data AuthResponse = AuthResponse { accessToken :: String }
 instance FromJSON AuthResponse where
     parseJSON (Object v) = AuthResponse <$> v .: "access_token"
     parseJSON _ = mzero
-
--- Configuración para las llamadas a la API
-data ApiConfig = ApiConfig 
-    { username :: String
-    , password :: String
-    }
 
 -- Función para obtener las credenciales desde el archivo .env
 getCredentials :: IO (Maybe String, Maybe String)
@@ -83,60 +68,7 @@ authenticate username password = do
                         responseStr = BL.toStrict body
                         endIndex = length (BC.unpack responseStr) - 2
                         token = BC.unpack $ BC.take (endIndex - startIndex) $ BC.drop startIndex responseStr
-                    -- Guardar el token en la variable global
-                    writeIORef globalToken (Just token)
                     return $ Just token
                 else do
                     putStrLn $ "Error: Status code " ++ show status
-                    return Nothing
-
--- Función para llamar a cualquier API con manejo automático del token
-callApi :: ApiConfig -> String -> IO (Maybe BL.ByteString)
-callApi config apiUrl = do
-    manager <- newTlsManager
-    currentToken <- readIORef globalToken
-    
-    let makeRequest token = do
-            initialRequest <- parseRequest apiUrl
-            let request = initialRequest
-                    { method = "GET"
-                    , requestHeaders = 
-                        [ ("Authorization", "Bearer " <> BC.pack token)
-                        , ("Content-Type", "application/json")
-                        ]
-                    }
-            
-            result <- try $ httpLbs request manager
-            case result of
-                Left e -> do
-                    putStrLn $ "Error en la petición HTTP: " ++ show (e :: HttpException)
-                    return Nothing
-                Right response -> do
-                    let status = statusCode $ responseStatus response
-                    if status == 200
-                        then do
-                            putStrLn "API call successful"
-                            return $ Just $ responseBody response
-                        else return Nothing
-
-    case currentToken of
-        Just token -> do
-            response <- makeRequest token
-            case response of
-                Just body -> return $ Just body
-                Nothing -> do
-                    putStrLn "Renovando token..."
-                    newToken <- authenticate (username config) (password config)
-                    case newToken of
-                        Just token' -> makeRequest token'
-                        Nothing -> do
-                            putStrLn "Error al renovar el token"
-                            return Nothing
-        Nothing -> do
-            putStrLn "No hay token, obteniendo uno nuevo..."
-            newToken <- authenticate (username config) (password config)
-            case newToken of
-                Just token -> makeRequest token
-                Nothing -> do
-                    putStrLn "Error al obtener el token"
                     return Nothing
