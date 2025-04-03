@@ -3,7 +3,7 @@
 module Main where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import Types (ApiConfig(..), EstadoCuenta(..))
+import Types (ApiConfig(..), EstadoCuenta(..), Estado(..), Precios(..), Ticket(..))
 import Api (getCredentials, getCotizacion, getEstadoCuenta)
 import Database
 import qualified Data.Text as T
@@ -51,6 +51,56 @@ main = do
                         putStrLn $ "Guardando cotización de " ++ T.unpack symbol ++ " en la base de datos..."
                         -- insertCotizacion conn symbol cotizacion
                     Nothing -> putStrLn $ "Error al obtener cotización para " ++ T.unpack symbol
+
+            -- Probar funcionalidad de tickets
+            putStrLn "\nProbando funcionalidad de tickets..."
+            let testTicket = Ticket
+                    { ticketName = "GGAL"
+                    , estado = Waiting
+                    , precios = Precios
+                        { compra1 = 1000.0
+                        , compra2 = 950.0
+                        , venta1 = 1100.0
+                        , venta2 = 1200.0
+                        , takeProfit = 1300.0
+                        , stopLoss = 900.0
+                        }
+                    , puntaCompra = 1050.0
+                    , puntaVenta = 1080.0
+                    , lastUpdate = read "2025-04-03 04:12:57 UTC"
+                    }
+
+            putStrLn "Insertando ticket de prueba..."
+            insertTicket conn testTicket
+
+            putStrLn "\nObteniendo ticket específico..."
+            maybeTicket <- getTicket conn "GGAL"
+            case maybeTicket of
+                Just ticket -> do
+                    putStrLn $ "Ticket encontrado: " ++ ticketName ticket
+                    putStrLn $ "Estado: " ++ show (estado ticket)
+                    putStrLn $ "Precio compra 1: " ++ show (compra1 $ precios ticket)
+                Nothing -> putStrLn "Ticket no encontrado"
+
+            putStrLn "\nActualizando estado del ticket..."
+            let updatedTicket = testTicket { estado = FirstBuy }
+            updateTicket conn updatedTicket
+
+            putStrLn "\nListando todos los tickets..."
+            allTickets <- getAllTickets conn
+            forM_ allTickets $ \ticket -> do
+                putStrLn $ "\nTicket: " ++ ticketName ticket
+                putStrLn $ "Estado: " ++ show (estado ticket)
+                putStrLn $ "Precios:"
+                putStrLn $ "  Compra 1: " ++ show (compra1 $ precios ticket)
+                putStrLn $ "  Compra 2: " ++ show (compra2 $ precios ticket)
+                putStrLn $ "  Venta 1: " ++ show (venta1 $ precios ticket)
+                putStrLn $ "  Venta 2: " ++ show (venta2 $ precios ticket)
+                putStrLn $ "  Take Profit: " ++ show (takeProfit $ precios ticket)
+                putStrLn $ "  Stop Loss: " ++ show (stopLoss $ precios ticket)
+                putStrLn $ "Puntas actuales:"
+                putStrLn $ "  Compra: " ++ show (puntaCompra ticket)
+                putStrLn $ "  Venta: " ++ show (puntaVenta ticket)
 
             -- Verificar datos guardados
             -- putStrLn "\nVerificando datos guardados..."

@@ -9,11 +9,15 @@ module Types
     , EstadoCuenta(..)
     , Cuenta(..)
     , SaldoDetalle(..)
+    , Estado(..)
+    , Precios(..)
+    , Ticket(..)
     ) where
 
 import Data.Aeson (FromJSON(..), Value(Object), (.:), genericParseJSON, defaultOptions)
 import Control.Monad (mzero)
 import GHC.Generics
+import Data.Time.Clock (UTCTime)
 
 -- Tipo de dato para almacenar el token
 data AuthResponse = AuthResponse { accessToken :: String }
@@ -72,3 +76,32 @@ data EstadoCuenta = EstadoCuenta
 
 instance FromJSON EstadoCuenta where
     parseJSON = genericParseJSON defaultOptions
+
+-- Tipos para el sistema de trading de tickets
+data Estado
+    = Waiting
+    | FirstBuy
+    | SecondBuy
+    | FirstSell
+    | SecondSell
+    | StopLoss
+    | TakeProfit
+    deriving (Show, Read, Eq)
+
+data Precios = Precios
+    { compra1       :: Double
+    , compra2       :: Double
+    , venta1        :: Double
+    , venta2        :: Double
+    , takeProfit    :: Double
+    , stopLoss      :: Double
+    } deriving (Show, Read, Eq)
+
+data Ticket = Ticket
+    { ticketName    :: String
+    , estado        :: Estado
+    , precios       :: Precios
+    , puntaCompra   :: Double
+    , puntaVenta    :: Double
+    , lastUpdate    :: UTCTime
+    } deriving (Show, Read, Eq)

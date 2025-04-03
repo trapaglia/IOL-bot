@@ -143,6 +143,7 @@ getCotizacion config symbol = do
     case response of
         Nothing -> do
             putStrLn "Error al llamar a la API"
+            putStrLn $ "Respuesta: " ++ show body
             return Nothing
         Just body -> do
             putStrLn $ "Respuesta: " ++ show body

@@ -6,14 +6,19 @@ module Database
     , insertTenencia
     , insertEstadoCuenta
     , insertToken
+    , insertTicket
     , getLatestCotizacion
     , getLatestTenencias
     , getLatestEstadoCuenta
     , getLatestToken
+    , getTicket
+    , getAllTickets
+    , updateTicket
     , DBCotizacion(..)
     , DBTenencia(..)
     , DBEstadoCuenta(..)
     , DBToken(..)
+    , DBTicket(..)
     ) where
 
 import Database.SQLite.Simple
@@ -54,6 +59,20 @@ data DBToken = DBToken
     , tokenTimestamp :: UTCTime
     } deriving (Show)
 
+data DBTicket = DBTicket
+    { dbTicketName    :: T.Text
+    , dbEstado        :: T.Text
+    , dbCompra1       :: Double
+    , dbCompra2       :: Double
+    , dbVenta1        :: Double
+    , dbVenta2        :: Double
+    , dbTakeProfit    :: Double
+    , dbStopLoss      :: Double
+    , dbPuntaCompra   :: Double
+    , dbPuntaVenta    :: Double
+    , dbLastUpdate    :: UTCTime
+    } deriving (Show)
+
 instance FromRow DBCotizacion where
     fromRow = DBCotizacion <$> field <*> field <*> field <*> field <*> field
 
@@ -92,6 +111,23 @@ instance ToRow DBToken where
     toRow t = [SQLText $ tokenValue t,
                SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" $ tokenTimestamp t]
 
+instance FromRow DBTicket where
+    fromRow = DBTicket <$> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field
+
+instance ToRow DBTicket where
+    toRow t = [ SQLText $ dbTicketName t
+              , SQLText $ dbEstado t
+              , SQLFloat $ dbCompra1 t
+              , SQLFloat $ dbCompra2 t
+              , SQLFloat $ dbVenta1 t
+              , SQLFloat $ dbVenta2 t
+              , SQLFloat $ dbTakeProfit t
+              , SQLFloat $ dbStopLoss t
+              , SQLFloat $ dbPuntaCompra t
+              , SQLFloat $ dbPuntaVenta t
+              , SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" $ dbLastUpdate t
+              ]
+
 -- Inicialización de la base de datos
 initializeDatabase :: IO Connection
 initializeDatabase = do
@@ -128,7 +164,53 @@ initializeDatabase = do
         \token TEXT NOT NULL,\
         \timestamp DATETIME NOT NULL PRIMARY KEY)"
     
+    execute_ conn "CREATE TABLE IF NOT EXISTS tickets (\
+        \ticket_name TEXT PRIMARY KEY,\
+        \estado TEXT NOT NULL,\
+        \compra1 REAL NOT NULL,\
+        \compra2 REAL NOT NULL,\
+        \venta1 REAL NOT NULL,\
+        \venta2 REAL NOT NULL,\
+        \take_profit REAL NOT NULL,\
+        \stop_loss REAL NOT NULL,\
+        \punta_compra REAL NOT NULL,\
+        \punta_venta REAL NOT NULL,\
+        \last_update DATETIME NOT NULL)"
+
     return conn
+
+-- Conversión entre tipos DB y dominio
+ticketToDBTicket :: Ticket -> DBTicket
+ticketToDBTicket ticket = DBTicket
+    { dbTicketName = T.pack $ ticketName ticket
+    , dbEstado = T.pack $ show $ estado ticket
+    , dbCompra1 = compra1 $ precios ticket
+    , dbCompra2 = compra2 $ precios ticket
+    , dbVenta1 = venta1 $ precios ticket
+    , dbVenta2 = venta2 $ precios ticket
+    , dbTakeProfit = takeProfit $ precios ticket
+    , dbStopLoss = stopLoss $ precios ticket
+    , dbPuntaCompra = puntaCompra ticket
+    , dbPuntaVenta = puntaVenta ticket
+    , dbLastUpdate = lastUpdate ticket
+    }
+
+dbTicketToTicket :: DBTicket -> Ticket
+dbTicketToTicket dbTicket = Ticket
+    { ticketName = T.unpack $ dbTicketName dbTicket
+    , estado = read $ T.unpack $ dbEstado dbTicket
+    , precios = Precios
+        { compra1 = dbCompra1 dbTicket
+        , compra2 = dbCompra2 dbTicket
+        , venta1 = dbVenta1 dbTicket
+        , venta2 = dbVenta2 dbTicket
+        , takeProfit = dbTakeProfit dbTicket
+        , stopLoss = dbStopLoss dbTicket
+        }
+    , puntaCompra = dbPuntaCompra dbTicket
+    , puntaVenta = dbPuntaVenta dbTicket
+    , lastUpdate = dbLastUpdate dbTicket
+    }
 
 -- Funciones de inserción
 insertCotizacion :: Connection -> T.Text -> CotizacionDetalle -> IO ()
@@ -166,6 +248,13 @@ insertToken conn token = do
     execute conn "INSERT OR REPLACE INTO tokens (token, timestamp) VALUES (?, datetime(?))"
         (DBToken (T.pack token) now)
 
+insertTicket :: Connection -> Ticket -> IO ()
+insertTicket conn ticket = do
+    execute conn "INSERT OR REPLACE INTO tickets \
+        \(ticket_name, estado, compra1, compra2, venta1, venta2, take_profit, stop_loss, punta_compra, punta_venta, last_update) \
+        \VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(?))"
+        (ticketToDBTicket ticket)
+
 -- Funciones de consulta
 getLatestCotizacion :: Connection -> T.Text -> IO (Maybe DBCotizacion)
 getLatestCotizacion conn symbol = do
@@ -201,3 +290,20 @@ getLatestToken conn = do
     return $ case results of
         (x:_) -> Just x
         [] -> Nothing
+
+getTicket :: Connection -> String -> IO (Maybe Ticket)
+getTicket conn name = do
+    results <- query conn
+        "SELECT * FROM tickets WHERE ticket_name = ?"
+        (Only $ T.pack name) :: IO [DBTicket]
+    return $ case results of
+        (x:_) -> Just $ dbTicketToTicket x
+        [] -> Nothing
+
+getAllTickets :: Connection -> IO [Ticket]
+getAllTickets conn = do
+    results <- query_ conn "SELECT * FROM tickets" :: IO [DBTicket]
+    return $ map dbTicketToTicket results
+
+updateTicket :: Connection -> Ticket -> IO ()
+updateTicket conn = insertTicket conn  -- Using REPLACE INTO in insertTicket makes this equivalent
