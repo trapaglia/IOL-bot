@@ -97,7 +97,7 @@ initializeDatabase :: IO Connection
 initializeDatabase = do
     conn <- open "iol.db"
     -- Eliminar tablas existentes para recrearlas con la nueva estructura
-    execute_ conn "DROP TABLE IF EXISTS estado_cuenta"
+    -- execute_ conn "DROP TABLE IF EXISTS estado_cuenta"
     
     execute_ conn "CREATE TABLE IF NOT EXISTS cotizaciones (\
         \symbol TEXT NOT NULL,\

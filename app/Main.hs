@@ -12,7 +12,7 @@ import Control.Monad (forM_)
 
 -- Lista de símbolos para obtener cotizaciones
 symbols :: [T.Text]
-symbols = ["GGAL", "PAMP", "YPF", "BBAR"]
+symbols = ["GGAL"] --"PAMP", "YPF", "BBAR"]
 
 -- Función principal para probar la autenticación
 main :: IO ()
@@ -31,15 +31,15 @@ main = do
             putStrLn "Credentials OK!\n"
             let config = ApiConfig user pass
             
-            -- Obtener y guardar estado de cuentas
-            putStrLn "\nObteniendo estado de cuenta..."
-            maybeEstadoCuenta <- getEstadoCuenta config
-            case maybeEstadoCuenta of
-                Just ec -> do
-                    putStrLn "Guardando estado de cuenta en la base de datos..."
-                    forM_ (cuentas ec) $ \cuenta -> do
-                        insertEstadoCuenta conn cuenta
-                Nothing -> putStrLn "Error al obtener estado de cuenta"
+            -- -- Obtener y guardar estado de cuentas
+            -- putStrLn "\nObteniendo estado de cuenta..."
+            -- maybeEstadoCuenta <- getEstadoCuenta config
+            -- case maybeEstadoCuenta of
+            --     Just ec -> do
+            --         putStrLn "Guardando estado de cuenta en la base de datos..."
+            --         forM_ (cuentas ec) $ \cuenta -> do
+            --             insertEstadoCuenta conn cuenta
+            --     Nothing -> putStrLn "Error al obtener estado de cuenta"
 
             -- Obtener y guardar cotizaciones
             putStrLn "\nObteniendo cotizaciones..."
@@ -49,18 +49,18 @@ main = do
                 case maybeCotizacion of
                     Just cotizacion -> do
                         putStrLn $ "Guardando cotización de " ++ T.unpack symbol ++ " en la base de datos..."
-                        insertCotizacion conn symbol cotizacion
+                        -- insertCotizacion conn symbol cotizacion
                     Nothing -> putStrLn $ "Error al obtener cotización para " ++ T.unpack symbol
 
             -- Verificar datos guardados
-            putStrLn "\nVerificando datos guardados..."
+            -- putStrLn "\nVerificando datos guardados..."
             
-            putStrLn "\nÚltimo estado de cuenta:"
-            latestCuentas <- getLatestEstadoCuenta conn
-            forM_ latestCuentas $ \cuenta -> do
-                putStrLn $ "Cuenta: " ++ T.unpack (cuentaNumero cuenta)
-                putStrLn $ "Moneda: " ++ show (cuentaMoneda cuenta)
-                putStrLn $ "Saldo disponible: " ++ show (cuentaDisponible cuenta)
+            -- putStrLn "\nÚltimo estado de cuenta:"
+            -- latestCuentas <- getLatestEstadoCuenta conn
+            -- forM_ latestCuentas $ \cuenta -> do
+            --     putStrLn $ "Cuenta: " ++ T.unpack (cuentaNumero cuenta)
+            --     putStrLn $ "Moneda: " ++ show (cuentaMoneda cuenta)
+            --     putStrLn $ "Saldo disponible: " ++ show (cuentaDisponible cuenta)
 
             -- putStrLn "\nÚltimas cotizaciones:"
             -- forM_ symbols $ \symbol -> do

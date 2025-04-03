@@ -32,9 +32,9 @@ getCredentials = do
     let envPath = "c:\\Users\\Administrador\\Documents\\proyectos\\IOL bot\\.env"
     let config = Dotenv.defaultConfig { Dotenv.configPath = [envPath] }
     _ <- Dotenv.loadFile config
-    username <- lookupEnv "IOL_USERNAME"
-    password <- lookupEnv "IOL_PASSWORD"
-    return (username, password)
+    user<- lookupEnv "IOL_USERNAME"
+    pass<- lookupEnv "IOL_PASSWORD"
+    return (user, pass)
 
 -- Función para extraer el token de la respuesta
 extractToken :: BL.ByteString -> Maybe String
@@ -44,13 +44,13 @@ extractToken body = do
 
 -- Función para realizar la autenticación y obtener el token
 authenticate :: String -> String -> IO (Maybe String)
-authenticate username password = do
+authenticate user pass = do
     -- Crear un manager TLS que maneja automáticamente los certificados
     manager <- newTlsManager
     
     -- Preparar la request
     initialRequest <- parseRequest "https://api.invertironline.com/token"
-    let postData = BC.pack $ "username=" ++ username ++ "&password=" ++ password ++ "&grant_type=password"
+    let postData = BC.pack $ "username=" ++ user ++ "&password=" ++ pass ++ "&grant_type=password"
         request = initialRequest
             { method = "POST"
             , requestBody = RequestBodyBS postData
@@ -106,6 +106,7 @@ callApi config apiUrl = do
                     putStrLn $ "Error en la petición HTTP: " ++ show (e :: HttpException)
                     return Nothing
                 Right response -> do
+                    putStrLn $ "Todo bien en la petición HTTP: " ++ show (response)
                     let status = statusCode $ responseStatus response
                     if status == 200
                         then do
@@ -144,7 +145,7 @@ getCotizacion config symbol = do
             putStrLn "Error al llamar a la API"
             return Nothing
         Just body -> do
-            -- putStrLn $ "Respuesta: " ++ show body
+            putStrLn $ "Respuesta: " ++ show body
             -- return $ decode body
             let cotizacion = decode body :: Maybe CotizacionDetalle
             case cotizacion of
