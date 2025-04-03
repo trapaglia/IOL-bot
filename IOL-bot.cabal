@@ -1,7 +1,6 @@
 cabal-version:      3.12
 -- The cabal-version field refers to the version of the .cabal specification,
--- and can be different from the cabal-install (the tool) version and the
--- Cabal (the library) version you are using. As such, the Cabal (the library)
+-- and can be different from the Cabal (the library) version you are using. As such, the Cabal (the library)
 -- version used must be equal or greater than the version stated in this field.
 -- Starting from the specification version 2.2, the cabal-version field must be
 -- the first thing in the cabal file.
@@ -105,6 +104,9 @@ executable IOL-bot
         , dotenv
         , IOL-bot
         , aeson
+        , tls >= 1.6.0
+        , network-run
+        , data-default-class
 
     -- Directories containing source files.
     hs-source-dirs:   app
