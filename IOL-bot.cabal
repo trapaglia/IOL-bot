@@ -61,6 +61,7 @@ library
                    , Api
                    , Database
                    , Utils
+                   , Trading
 
     -- Modules included in this library but not exported.
     -- other-modules:

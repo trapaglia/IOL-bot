@@ -4,9 +4,10 @@
 module Main where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import Types (ApiConfig(..), EstadoCuenta(..), Estado(..), Precios(..), Ticket(..))
-import Api (getCredentials, getCotizacion, getEstadoCuenta, updateTicketMarketData)
+import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..))
+import Api (getCredentials, updateTicketMarketData)
 import Database
+import Trading (processTicket)
 import Utils (getCurrentTimeArgentina)
 import qualified Data.Text as T
 import Database.SQLite.Simple (Connection, close)
@@ -14,11 +15,17 @@ import Control.Monad (forM_, when)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
--- import System.Win32.Console()
 
--- Lista de símbolos para obtener cotizaciones
-symbols :: [T.Text]
-symbols = ["GGAL"] --"PAMP", "YPF", "BBAR"]
+-- Funciones placeholder para operaciones de trading
+placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
+placeBuyOrder _ _ ticket = do
+    putStrLn $ "[PLACEHOLDER] Comprando " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
+    return True
+
+placeSellOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
+placeSellOrder _ _ ticket = do
+    putStrLn $ "[PLACEHOLDER] Vendiendo " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
+    return True
 
 -- Función para actualizar todos los tickets
 updateAllTickets :: Connection -> ApiConfig -> IO ()
@@ -33,6 +40,7 @@ updateAllTickets conn config = do
                 updateTicket conn updatedTicket
                 putStrLn $ "  Compra: " ++ show (puntaCompra updatedTicket)
                 putStrLn $ "  Venta: " ++ show (puntaVenta updatedTicket)
+                processTicket conn config updatedTicket
             Nothing -> putStrLn $ "  Error al actualizar " ++ ticketName ticket
 
 -- Bucle principal del programa
