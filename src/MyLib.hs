@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module MyLib 
     ( getCredentials
@@ -6,6 +7,9 @@ module MyLib
     , AuthResponse(..)
     , callApi
     , ApiConfig(..)
+    , getCotizacion
+    , CotizacionDetalle(..)
+    , Punta(..)
     ) where
 
 import System.Environment (lookupEnv)
@@ -20,8 +24,8 @@ import qualified Data.ByteString.Lazy as BL
 import Control.Exception (try)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
-import Data.List (isPrefixOf, isSuffixOf)
-import qualified Data.Aeson as Aeson
+import GHC.Generics
+import Data.Aeson.Types
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
@@ -30,11 +34,28 @@ globalToken = unsafePerformIO $ newIORef Nothing
 
 -- Tipo de dato para almacenar el token
 data AuthResponse = AuthResponse { accessToken :: String }
-    deriving Show
+    deriving (Show, Generic)
 
 instance FromJSON AuthResponse where
     parseJSON (Object v) = AuthResponse <$> v .: "access_token"
     parseJSON _ = mzero
+
+-- Tipos para la cotización
+data Punta = Punta
+    { precioCompra :: Double
+    , precioVenta :: Double
+    } deriving (Show, Generic)
+
+instance FromJSON Punta where
+    parseJSON = genericParseJSON defaultOptions
+
+data CotizacionDetalle = CotizacionDetalle
+    { ultimoPrecio :: Double
+    , puntas :: [Punta]
+    } deriving (Show, Generic)
+
+instance FromJSON CotizacionDetalle where
+    parseJSON = genericParseJSON defaultOptions
 
 -- Configuración para las llamadas a la API
 data ApiConfig = ApiConfig 
@@ -149,4 +170,24 @@ callApi config apiUrl = do
                 Just token -> makeRequest token
                 Nothing -> do
                     putStrLn "Error al obtener el token"
+                    return Nothing
+
+-- Función para obtener la cotización de un símbolo
+getCotizacion :: ApiConfig -> String -> IO (Maybe CotizacionDetalle)
+getCotizacion config simbolo = do
+    let apiUrl = "https://api.invertironline.com/api/v2/bCBA/Titulos/" ++ simbolo ++ "/CotizacionDetalle"
+    response <- callApi config apiUrl
+    case response of
+        Nothing -> return Nothing
+        Just body -> do
+            let cotizacion = decode body :: Maybe CotizacionDetalle
+            case cotizacion of
+                Just cot -> do
+                    putStrLn $ "Último precio: " ++ show (ultimoPrecio cot)
+                    case puntas cot of
+                        (p:_) -> putStrLn $ "Spread: " ++ show (precioVenta p - precioCompra p)
+                        [] -> putStrLn "No hay puntas disponibles"
+                    return $ Just cot
+                Nothing -> do
+                    putStrLn "Error al decodificar la respuesta"
                     return Nothing
