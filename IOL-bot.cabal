@@ -70,12 +70,9 @@ library
         , network
         , bytestring
         , dotenv
-        -- , http-client ^>= 0.7.11
-        -- , http-client-tls ^>= 0.3.5.3
-        -- , http-types ^>= 0.12.3
-
-
-
+        , http-client ^>= 0.7.11
+        , http-client-tls ^>= 0.3.5.3
+        , http-types ^>= 0.12.3
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -107,6 +104,9 @@ executable IOL-bot
         , tls >= 1.6.0
         , network-run
         , data-default-class
+        , http-client ^>= 0.7.11
+        , http-client-tls ^>= 0.3.5.3
+        , http-types ^>= 0.12.3
 
     -- Directories containing source files.
     hs-source-dirs:   app
