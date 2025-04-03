@@ -59,6 +59,7 @@ library
     -- Modules exported by the library.
     exposed-modules:  Types
                    , Api
+                   , Database
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -75,6 +76,9 @@ library
         , http-client ^>= 0.7.11
         , http-client-tls ^>= 0.3.5.3
         , http-types ^>= 0.12.3
+        , sqlite-simple
+        , time
+        , text
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -109,6 +113,9 @@ executable IOL-bot
         , http-client ^>= 0.7.11
         , http-client-tls ^>= 0.3.5.3
         , http-types ^>= 0.12.3
+        , sqlite-simple
+        , time
+        , text
 
     -- Directories containing source files.
     hs-source-dirs:   app
