@@ -10,11 +10,15 @@ module MyLib
     , getCotizacion
     , CotizacionDetalle(..)
     , Punta(..)
+    , getEstadoCuenta
+    , EstadoCuenta(..)
+    , Cuenta(..)
+    , SaldoDetalle(..)
     ) where
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (FromJSON(..), Value(Object), (.:), decode)
+import Data.Aeson (FromJSON(..), Value(Object), (.:), decode, genericParseJSON, defaultOptions)
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad (mzero)
 import Network.HTTP.Client
@@ -25,7 +29,6 @@ import Control.Exception (try)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
 import GHC.Generics
-import Data.Aeson.Types
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
@@ -62,6 +65,33 @@ data ApiConfig = ApiConfig
     { username :: String
     , password :: String
     }
+
+-- Tipos para el estado de cuenta
+data SaldoDetalle = SaldoDetalle
+    { saldo :: Double
+    , comprometido :: Double
+    , disponible :: Double
+    } deriving (Show, Generic)
+
+instance FromJSON SaldoDetalle where
+    parseJSON = genericParseJSON defaultOptions
+
+data Cuenta = Cuenta
+    { numero :: String
+    , tipo :: String
+    , moneda :: String
+    , saldos :: [SaldoDetalle]
+    } deriving (Show, Generic)
+
+instance FromJSON Cuenta where
+    parseJSON = genericParseJSON defaultOptions
+
+data EstadoCuenta = EstadoCuenta
+    { cuentas :: [Cuenta]
+    } deriving (Show, Generic)
+
+instance FromJSON EstadoCuenta where
+    parseJSON = genericParseJSON defaultOptions
 
 -- Función para obtener las credenciales desde el archivo .env
 getCredentials :: IO (Maybe String, Maybe String)
@@ -188,6 +218,35 @@ getCotizacion config simbolo = do
                         (p:_) -> putStrLn $ "Spread: " ++ show (precioVenta p - precioCompra p)
                         [] -> putStrLn "No hay puntas disponibles"
                     return $ Just cot
+                Nothing -> do
+                    putStrLn "Error al decodificar la respuesta"
+                    return Nothing
+
+-- Función para obtener el estado de cuenta
+getEstadoCuenta :: ApiConfig -> IO (Maybe EstadoCuenta)
+getEstadoCuenta config = do
+    response <- callApi config "https://api.invertironline.com/api/v2/estadocuenta"
+    case response of
+        Nothing -> do
+            putStrLn "Error al llamar a la API"
+            return Nothing
+        Just body -> do
+            let estadoCuenta = decode body :: Maybe EstadoCuenta
+            case estadoCuenta of
+                Just ec -> do
+                    putStrLn "Estado de cuenta:"
+                    mapM_ (\cuenta -> do
+                        putStrLn $ "\nCuenta: " ++ numero cuenta
+                        putStrLn $ "Tipo: " ++ tipo cuenta
+                        putStrLn $ "Moneda: " ++ moneda cuenta
+                        case saldos cuenta of
+                            (s:_) -> do
+                                putStrLn $ "Saldo: " ++ show (saldo s)
+                                putStrLn $ "Comprometido: " ++ show (comprometido s)
+                                putStrLn $ "Disponible: " ++ show (disponible s)
+                            [] -> putStrLn "No hay información de saldos"
+                        ) (cuentas ec)
+                    return $ Just ec
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta"
                     return Nothing

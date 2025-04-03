@@ -3,7 +3,7 @@
 module Main where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import MyLib (getCredentials, callApi, ApiConfig(..), getCotizacion)
+import MyLib (getCredentials, callApi, ApiConfig(..), getCotizacion, getEstadoCuenta)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Maybe (fromJust)
 
@@ -21,8 +21,8 @@ main = do
             let config = ApiConfig username password
             
             -- Probar obtener cotización
-            putStrLn "Obteniendo cotización de GGAL..."
-            _ <- getCotizacion config "GGAL"
+            _ <- getEstadoCuenta config
+            -- _ <- getCotizacion config "GGAL"
             return ()
             
         _ -> putStrLn "Error: Credenciales no encontradas en .env"
