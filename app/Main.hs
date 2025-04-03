@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -10,9 +11,10 @@ import Utils (getCurrentTimeArgentina)
 import qualified Data.Text as T
 import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_, forever, when)
-import Control.Concurrent (threadDelay)
-import Control.Exception (catch, SomeException)
+import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, takeMVar, MVar, tryTakeMVar)
+import Control.Exception (catch, SomeException, finally, fromException, AsyncException)
 import Control.Concurrent.Async (withAsync, waitCatch)
+import System.Win32.Console (generateConsoleCtrlEvent, cTRL_C_EVENT)
 
 -- Lista de símbolos para obtener cotizaciones
 symbols :: [T.Text]
@@ -34,27 +36,48 @@ updateAllTickets conn config = do
             Nothing -> putStrLn $ "  Error al actualizar " ++ ticketName ticket
 
 -- Bucle principal del programa
-mainLoop :: Connection -> ApiConfig -> IO ()
-mainLoop conn config = forever $ do
+mainLoop :: Connection -> ApiConfig -> MVar () -> IO ()
+mainLoop conn config stopMVar = do
     catch
         (updateAllTickets conn config)
         (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
     
-    -- Esperar 30 segundos
-    threadDelay (30 * 1000000)  -- threadDelay toma microsegundos
+    -- Verificar si debemos detener el programa
+    stopped <- tryTakeMVar stopMVar
+    case stopped of
+        Just _ -> return ()
+        Nothing -> do
+            -- Esperar 30 segundos
+            threadDelay (30 * 1000000)  -- threadDelay toma microsegundos
+            mainLoop conn config stopMVar
 
 -- Función para ejecutar el bucle principal con manejo de interrupciones
 runMainLoop :: Connection -> ApiConfig -> IO ()
 runMainLoop conn config = do
     putStrLn "\nIniciando bucle principal... (Presiona Ctrl+C para detener)"
-    withAsync (mainLoop conn config) $ \asyncHandle -> do
-        result <- waitCatch asyncHandle
-        case result of
-            Left e -> putStrLn $ "\nPrograma interrumpido: " ++ show e
-            Right _ -> putStrLn "\nPrograma finalizado normalmente"
-    putStrLn "Cerrando conexión a la base de datos..."
-    close conn
-    putStrLn "¡Hasta luego!"
+    stopMVar <- newEmptyMVar
+    
+    -- Configurar manejador de Ctrl+C
+    let cleanup = do
+            putStrLn "\nDeteniendo el programa..."
+            putMVar stopMVar ()
+            putStrLn "Cerrando conexión a la base de datos..."
+            close conn
+            putStrLn "¡Hasta luego!"
+    
+    -- Ejecutar el bucle principal con manejo de excepciones
+    catch 
+        (mainLoop conn config stopMVar)
+        (\e -> do
+            case e of
+                -- Si es una interrupción por Ctrl+C
+                _ | Just (_ :: AsyncException) <- fromException e -> do
+                    cleanup
+                -- Para otras excepciones
+                _ -> do
+                    putStrLn $ "Error inesperado: " ++ show (e :: SomeException)
+                    cleanup
+        )
 
 main :: IO ()
 main = do

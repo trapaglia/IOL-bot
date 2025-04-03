@@ -81,6 +81,7 @@ library
         , time
         , text
         , async
+        , Win32
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -119,6 +120,7 @@ executable IOL-bot
         , time
         , text
         , async
+        , Win32
 
     -- Directories containing source files.
     hs-source-dirs:   app
