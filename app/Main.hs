@@ -9,20 +9,23 @@ import Database
 import qualified Data.Text as T
 import Database.SQLite.Simple (close)
 import Control.Monad (forM_)
+import Data.Time.Clock (getCurrentTime)
 
 -- Lista de símbolos para obtener cotizaciones
 symbols :: [T.Text]
 symbols = ["GGAL"] --"PAMP", "YPF", "BBAR"]
 
--- Función principal para probar la autenticación
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
 
     -- Inicializar base de datos
-    putStrLn "Inicializando base de datos..."
-    conn <- initializeDatabase
+    -- putStrLn "Inicializando base de datos..."
+    -- conn <- initializeDatabase
+    putStrLn "Conectando a la base de datos..."
+    conn <- connectDatabase
+    -- conn <- resetDatabase
 
     -- Obtener credenciales
     (maybeUsername, maybePassword) <- getCredentials
@@ -42,18 +45,19 @@ main = do
             --     Nothing -> putStrLn "Error al obtener estado de cuenta"
 
             -- Obtener y guardar cotizaciones
-            putStrLn "\nObteniendo cotizaciones..."
-            forM_ symbols $ \symbol -> do
-                putStrLn $ "Obteniendo cotización para " ++ T.unpack symbol ++ "..."
-                maybeCotizacion <- getCotizacion config (T.unpack symbol)
-                case maybeCotizacion of
-                    Just cotizacion -> do
-                        putStrLn $ "Guardando cotización de " ++ T.unpack symbol ++ " en la base de datos..."
-                        -- insertCotizacion conn symbol cotizacion
-                    Nothing -> putStrLn $ "Error al obtener cotización para " ++ T.unpack symbol
+            -- putStrLn "\nObteniendo cotizaciones..."
+            -- forM_ symbols $ \symbol -> do
+            --     putStrLn $ "Obteniendo cotización para " ++ T.unpack symbol ++ "..."
+            --     maybeCotizacion <- getCotizacion config (T.unpack symbol)
+            --     case maybeCotizacion of
+            --         Just cotizacion -> do
+            --             putStrLn $ "Guardando cotización de " ++ T.unpack symbol ++ " en la base de datos..."
+            --             -- insertCotizacion conn symbol cotizacion
+            --         Nothing -> putStrLn $ "Error al obtener cotización para " ++ T.unpack symbol
 
-            -- Probar funcionalidad de tickets
+            -- -- -- -- -- --  -- ----  --kets
             putStrLn "\nProbando funcionalidad de tickets..."
+            now <- getCurrentTime
             let testTicket = Ticket
                     { ticketName = "GGAL"
                     , estado = Waiting
@@ -67,7 +71,7 @@ main = do
                         }
                     , puntaCompra = 1050.0
                     , puntaVenta = 1080.0
-                    , lastUpdate = read "2025-04-03 04:12:57 UTC"
+                    , lastUpdate = now
                     }
 
             putStrLn "Insertando ticket de prueba..."
@@ -121,7 +125,6 @@ main = do
             --             putStrLn $ "  Último precio: " ++ show (cotizacionUltimoPrecio cotizacion)
             --             putStrLn $ "  Spread: " ++ show (cotizacionPrecioVenta cotizacion - cotizacionPrecioCompra cotizacion)
             --         Nothing -> putStrLn $ "No hay datos para " ++ T.unpack symbol
-
             -- Cerrar la conexión
             close conn
             

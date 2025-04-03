@@ -2,19 +2,18 @@
 
 module Database
     ( initializeDatabase
-    , insertCotizacion
+    , resetDatabase
+    , connectDatabase
     , insertTenencia
     , insertEstadoCuenta
     , insertToken
     , insertTicket
-    , getLatestCotizacion
-    , getLatestTenencias
-    , getLatestEstadoCuenta
-    , getLatestToken
     , getTicket
     , getAllTickets
     , updateTicket
-    , DBCotizacion(..)
+    , getLatestTenencias
+    , getLatestEstadoCuenta
+    , getLatestToken
     , DBTenencia(..)
     , DBEstadoCuenta(..)
     , DBToken(..)
@@ -29,14 +28,6 @@ import Data.Time
 import Types
 
 -- Tipos de datos para la base de datos
-data DBCotizacion = DBCotizacion
-    { cotizacionSymbol :: T.Text
-    , cotizacionUltimoPrecio :: Double
-    , cotizacionPrecioCompra :: Double
-    , cotizacionPrecioVenta :: Double
-    , cotizacionTimestamp :: UTCTime
-    } deriving (Show)
-
 data DBTenencia = DBTenencia
     { tenenciaSymbol :: T.Text
     , tenenciaCantidad :: Int
@@ -72,16 +63,6 @@ data DBTicket = DBTicket
     , dbPuntaVenta    :: Double
     , dbLastUpdate    :: UTCTime
     } deriving (Show)
-
-instance FromRow DBCotizacion where
-    fromRow = DBCotizacion <$> field <*> field <*> field <*> field <*> field
-
-instance ToRow DBCotizacion where
-    toRow c = [SQLText $ cotizacionSymbol c, 
-               SQLFloat $ cotizacionUltimoPrecio c,
-               SQLFloat $ cotizacionPrecioCompra c,
-               SQLFloat $ cotizacionPrecioVenta c,
-               SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" $ cotizacionTimestamp c]
 
 instance FromRow DBTenencia where
     fromRow = DBTenencia <$> field <*> field <*> field <*> field
@@ -128,21 +109,16 @@ instance ToRow DBTicket where
               , SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" $ dbLastUpdate t
               ]
 
--- Inicialización de la base de datos
-initializeDatabase :: IO Connection
-initializeDatabase = do
+-- Conexión a la base de datos
+connectDatabase :: IO Connection
+connectDatabase = do
     conn <- open "iol.db"
-    -- Eliminar tablas existentes para recrearlas con la nueva estructura
-    -- execute_ conn "DROP TABLE IF EXISTS estado_cuenta"
-    
-    execute_ conn "CREATE TABLE IF NOT EXISTS cotizaciones (\
-        \symbol TEXT NOT NULL,\
-        \ultimo_precio REAL NOT NULL,\
-        \precio_compra REAL NOT NULL,\
-        \precio_venta REAL NOT NULL,\
-        \timestamp DATETIME NOT NULL,\
-        \PRIMARY KEY (symbol, timestamp))"
-    
+    createTablesIfNotExist conn
+    return conn
+
+-- Crear tablas si no existen
+createTablesIfNotExist :: Connection -> IO ()
+createTablesIfNotExist conn = do
     execute_ conn "CREATE TABLE IF NOT EXISTS tenencias (\
         \symbol TEXT NOT NULL,\
         \cantidad INTEGER NOT NULL,\
@@ -163,7 +139,7 @@ initializeDatabase = do
     execute_ conn "CREATE TABLE IF NOT EXISTS tokens (\
         \token TEXT NOT NULL,\
         \timestamp DATETIME NOT NULL PRIMARY KEY)"
-    
+
     execute_ conn "CREATE TABLE IF NOT EXISTS tickets (\
         \ticket_name TEXT PRIMARY KEY,\
         \estado TEXT NOT NULL,\
@@ -177,6 +153,22 @@ initializeDatabase = do
         \punta_venta REAL NOT NULL,\
         \last_update DATETIME NOT NULL)"
 
+-- Inicialización de la base de datos (mantiene compatibilidad hacia atrás)
+initializeDatabase :: IO Connection
+initializeDatabase = connectDatabase
+
+-- Reset completo de la base de datos
+resetDatabase :: IO Connection
+resetDatabase = do
+    conn <- open "iol.db"
+    -- Eliminar todas las tablas existentes
+    execute_ conn "DROP TABLE IF EXISTS tenencias"
+    execute_ conn "DROP TABLE IF EXISTS estado_cuenta"
+    execute_ conn "DROP TABLE IF EXISTS tokens"
+    execute_ conn "DROP TABLE IF EXISTS tickets"
+    
+    -- Crear las tablas nuevamente
+    createTablesIfNotExist conn
     return conn
 
 -- Conversión entre tipos DB y dominio
@@ -213,14 +205,6 @@ dbTicketToTicket dbTicket = Ticket
     }
 
 -- Funciones de inserción
-insertCotizacion :: Connection -> T.Text -> CotizacionDetalle -> IO ()
-insertCotizacion conn symbol cotizacion = do
-    now <- getCurrentTime
-    case puntas cotizacion of
-        (p:_) -> execute conn "INSERT OR REPLACE INTO cotizaciones (symbol, ultimo_precio, precio_compra, precio_venta, timestamp) VALUES (?, ?, ?, ?, datetime(?))"
-                    (DBCotizacion symbol (ultimoPrecio cotizacion) (precioCompra p) (precioVenta p) now)
-        [] -> return ()
-
 insertTenencia :: Connection -> T.Text -> Int -> Double -> IO ()
 insertTenencia conn symbol cantidad precio = do
     now <- getCurrentTime
@@ -256,15 +240,6 @@ insertTicket conn ticket = do
         (ticketToDBTicket ticket)
 
 -- Funciones de consulta
-getLatestCotizacion :: Connection -> T.Text -> IO (Maybe DBCotizacion)
-getLatestCotizacion conn symbol = do
-    results <- query conn
-        "SELECT * FROM cotizaciones WHERE symbol = ? ORDER BY timestamp DESC LIMIT 1"
-        (Only symbol) :: IO [DBCotizacion]
-    return $ case results of
-        (x:_) -> Just x
-        [] -> Nothing
-
 getLatestTenencias :: Connection -> IO [DBTenencia]
 getLatestTenencias conn = do
     query_ conn
