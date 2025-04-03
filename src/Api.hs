@@ -77,6 +77,7 @@ authenticate user pass = do
                     let mToken = extractToken body
                     case mToken of
                         Just token -> do
+                            -- putStrLn $ "\nToken obtenido: " ++ token
                             writeIORef globalToken (Just token)
                             return $ Just token
                         Nothing -> do
@@ -141,7 +142,7 @@ callApi config apiUrl = do
 -- Función para obtener la cotización de un símbolo
 getCotizacion :: ApiConfig -> String -> IO (Maybe CotizacionDetalle)
 getCotizacion config symbol = do
-    response <- callApi config $ "https://api.invertironline.com/api/v2/Cotizaciones/" ++ symbol ++ "/Todos"
+    response <- callApi config $ "https://api.invertironline.com/api/v2/bCBA/Titulos/" ++ symbol ++ "/CotizacionDetalle"
     case response of
         Nothing -> do
             putStrLn "Error al llamar a la API"
@@ -152,10 +153,7 @@ getCotizacion config symbol = do
             let cotizacion = decode body :: Maybe CotizacionDetalle
             case cotizacion of
                 Just cot -> do
-                    putStrLn $ "Último precio: " ++ show (ultimoPrecio cot)
-                    case puntas cot of
-                        (p:_) -> putStrLn $ "Spread: " ++ show (precioVenta p - precioCompra p)
-                        [] -> putStrLn "No hay puntas disponibles"
+                    putStrLn $ "Cotización: " ++ show cot
                     return $ Just cot
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta"

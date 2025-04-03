@@ -10,11 +10,11 @@ import Database
 import Utils (getCurrentTimeArgentina)
 import qualified Data.Text as T
 import Database.SQLite.Simple (Connection, close)
-import Control.Monad (forM_, forever, when)
-import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, takeMVar, MVar, tryTakeMVar)
-import Control.Exception (catch, SomeException, finally, fromException, AsyncException)
-import Control.Concurrent.Async (withAsync, waitCatch)
-import System.Win32.Console (generateConsoleCtrlEvent, cTRL_C_EVENT)
+import Control.Monad (forM_, when)
+import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
+import Control.Exception (catch, SomeException, fromException, AsyncException)
+import Control.Concurrent.Async()
+-- import System.Win32.Console()
 
 -- Lista de símbolos para obtener cotizaciones
 symbols :: [T.Text]
