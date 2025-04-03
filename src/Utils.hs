@@ -4,16 +4,12 @@ module Utils
     ( getCurrentTimeArgentina
     ) where
 
-import Data.Time
-import Data.Time.Clock
-import Data.Time.LocalTime
+import Data.Time (UTCTime, getCurrentTime, minutesToTimeZone, utcToZonedTime, zonedTimeToUTC)
 
 -- Obtener el tiempo actual en Argentina (UTC-3)
 getCurrentTimeArgentina :: IO UTCTime
 getCurrentTimeArgentina = do
     now <- getCurrentTime
-    tz <- getTimeZone now
-    let localTime = utcToLocalTime tz now
-        argentinaOffset = -180  -- UTC-3 en minutos
-        argentinaTime = localTime { zonedTimeZone = minutesToTimeZone argentinaOffset }
+    let argentinaZone = minutesToTimeZone (-180)  -- UTC-3 en minutos
+        argentinaTime = utcToZonedTime argentinaZone now
     return $ zonedTimeToUTC argentinaTime

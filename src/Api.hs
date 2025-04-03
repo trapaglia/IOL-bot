@@ -21,7 +21,6 @@ import Control.Exception (try)
 import Data.IORef
 import System.IO.Unsafe (unsafePerformIO)
 import Types
-import Data.Time (getCurrentTime)
 import Utils (getCurrentTimeArgentina)
 
 -- Variable global para almacenar el token
@@ -109,7 +108,7 @@ callApi config apiUrl = do
                     putStrLn $ "Error en la petición HTTP: " ++ show (e :: HttpException)
                     return Nothing
                 Right response -> do
-                    putStrLn $ "Todo bien en la petición HTTP: " ++ show (response)
+                    -- putStrLn $ "Todo bien en la petición HTTP: " ++ show (response)
                     let status = statusCode $ responseStatus response
                     if status == 200
                         then do

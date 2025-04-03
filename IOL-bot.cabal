@@ -80,6 +80,7 @@ library
         , sqlite-simple
         , time
         , text
+        , async
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -117,6 +118,7 @@ executable IOL-bot
         , sqlite-simple
         , time
         , text
+        , async
 
     -- Directories containing source files.
     hs-source-dirs:   app

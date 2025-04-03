@@ -8,10 +8,11 @@ import Api (getCredentials, getCotizacion, getEstadoCuenta, updateTicketMarketDa
 import Database
 import Utils (getCurrentTimeArgentina)
 import qualified Data.Text as T
-import Database.SQLite.Simple (close)
+import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_, forever, when)
 import Control.Concurrent (threadDelay)
 import Control.Exception (catch, SomeException)
+import Control.Concurrent.Async (withAsync, waitCatch)
 
 -- Lista de símbolos para obtener cotizaciones
 symbols :: [T.Text]
@@ -41,6 +42,19 @@ mainLoop conn config = forever $ do
     
     -- Esperar 30 segundos
     threadDelay (30 * 1000000)  -- threadDelay toma microsegundos
+
+-- Función para ejecutar el bucle principal con manejo de interrupciones
+runMainLoop :: Connection -> ApiConfig -> IO ()
+runMainLoop conn config = do
+    putStrLn "\nIniciando bucle principal... (Presiona Ctrl+C para detener)"
+    withAsync (mainLoop conn config) $ \asyncHandle -> do
+        result <- waitCatch asyncHandle
+        case result of
+            Left e -> putStrLn $ "\nPrograma interrumpido: " ++ show e
+            Right _ -> putStrLn "\nPrograma finalizado normalmente"
+    putStrLn "Cerrando conexión a la base de datos..."
+    close conn
+    putStrLn "¡Hasta luego!"
 
 main :: IO ()
 main = do
@@ -80,8 +94,9 @@ main = do
                         }
                 insertTicket conn testTicket
 
-            -- Iniciar bucle principal
-            putStrLn "\nIniciando bucle principal..."
-            mainLoop conn config
+            -- Iniciar bucle principal con manejo de interrupciones
+            runMainLoop conn config
             
-        _ -> putStrLn "Error: Credenciales no encontradas en .env"
+        _ -> do
+            putStrLn "Error: Credenciales no encontradas en .env"
+            close conn
