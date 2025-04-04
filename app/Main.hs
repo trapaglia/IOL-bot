@@ -16,17 +16,6 @@ import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
 
--- Funciones placeholder para operaciones de trading
-placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
-placeBuyOrder _ _ ticket = do
-    putStrLn $ "[PLACEHOLDER] Comprando " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
-    return True
-
-placeSellOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
-placeSellOrder _ _ ticket = do
-    putStrLn $ "[PLACEHOLDER] Vendiendo " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
-    return True
-
 -- Función para actualizar todos los tickets
 updateAllTickets :: Connection -> ApiConfig -> IO ()
 updateAllTickets conn config = do
@@ -38,8 +27,14 @@ updateAllTickets conn config = do
         case maybeUpdatedTicket of
             Just updatedTicket -> do
                 updateTicket conn updatedTicket
-                putStrLn $ "  Compra: " ++ show (puntaCompra updatedTicket)
-                putStrLn $ "  Venta: " ++ show (puntaVenta updatedTicket)
+                putStrLn $ "  Punta Compra: " ++ show (puntaCompra updatedTicket)
+                putStrLn $ "  Punta Venta: " ++ show (puntaVenta updatedTicket)
+                putStrLn $ "  Estado: " ++ show (estado updatedTicket)
+                putStrLn $ "  Precio de compra1: " ++ show (compra1 $ precios updatedTicket)
+                putStrLn $ "  Precio de venta1: " ++ show (venta1 $ precios updatedTicket)
+                putStrLn $ "  Precio de compra2: " ++ show (compra2 $ precios updatedTicket)
+                putStrLn $ "  Precio de venta2: " ++ show (venta2 $ precios updatedTicket)
+
                 processTicket conn config updatedTicket
             Nothing -> putStrLn $ "  Error al actualizar " ++ ticketName ticket
 
@@ -94,7 +89,8 @@ main = do
 
     -- Inicializar base de datos
     putStrLn "Conectando a la base de datos..."
-    conn <- connectDatabase
+    conn <- resetDatabase
+    -- conn <- connectDatabase
 
     -- Obtener credenciales
     (maybeUsername, maybePassword) <- getCredentials
@@ -112,12 +108,12 @@ main = do
                         { ticketName = "GGAL"
                         , estado = Waiting
                         , precios = Precios
-                            { compra1 = 1000.0
-                            , compra2 = 950.0
-                            , venta1 = 1100.0
-                            , venta2 = 1200.0
-                            , takeProfit = 1300.0
-                            , stopLoss = 900.0
+                            { compra1 = 7400.0
+                            , compra2 = 7100.0
+                            , venta1 = 7600.0
+                            , venta2 = 7700.0
+                            , takeProfit = 7800.0
+                            , stopLoss = 7000.0
                             }
                         , puntaCompra = 0.0
                         , puntaVenta = 0.0

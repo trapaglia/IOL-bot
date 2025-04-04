@@ -12,15 +12,17 @@ module Types
     , Estado(..)
     , Precios(..)
     , Ticket(..)
+    , ComprarRequest(..)
+    , montoOperacion
     ) where
 
-import Data.Aeson (FromJSON(..), Value(Object), (.:), genericParseJSON, defaultOptions)
+import Data.Aeson (FromJSON(..), ToJSON(..), Value(Object), (.:), genericParseJSON, genericToJSON, defaultOptions)
 import Control.Monad (mzero)
 import GHC.Generics
 import Data.Time.Clock (UTCTime)
 
 -- Tipo de dato para almacenar el token
-data AuthResponse = AuthResponse { accessToken :: String }
+newtype AuthResponse = AuthResponse { accessToken :: String }
     deriving (Show, Generic)
 
 instance FromJSON AuthResponse where
@@ -105,3 +107,21 @@ data Ticket = Ticket
     , puntaVenta    :: Double
     , lastUpdate    :: UTCTime
     } deriving (Show, Read, Eq)
+
+-- Tipo para la orden de compra
+data ComprarRequest = ComprarRequest
+    { compraMercado :: String
+    , compraSimbolo :: String
+    , compraCantidad :: Int
+    , compraPrecio :: Double
+    , compraPlazo :: String
+    , compraValidez :: String
+    , compraTipoOrden :: String
+    } deriving (Show, Generic)
+
+instance ToJSON ComprarRequest where
+    toJSON = genericToJSON defaultOptions
+
+-- Configuración global
+montoOperacion :: Double
+montoOperacion = 10000.0  -- Valor inicial, ajustar según necesidad

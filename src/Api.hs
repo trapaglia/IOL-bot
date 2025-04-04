@@ -4,14 +4,16 @@ module Api
     ( getCredentials
     , authenticate
     , callApi
+    , callApiWithMethod
     , getCotizacion
     , getEstadoCuenta
     , updateTicketMarketData
+    , enviarOrdenCompra
     ) where
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (decode)
+import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Char8 as BC
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -19,6 +21,7 @@ import Network.HTTP.Types.Status (statusCode)
 import qualified Data.ByteString.Lazy as BL
 import Control.Exception (try)
 import Data.IORef
+import Data.Maybe (isJust)
 import System.IO.Unsafe (unsafePerformIO)
 import Types
 import Utils (getCurrentTimeArgentina)
@@ -89,18 +92,23 @@ authenticate user pass = do
 
 -- Función para llamar a cualquier API con manejo automático del token
 callApi :: ApiConfig -> String -> IO (Maybe BL.ByteString)
-callApi config apiUrl = do
+callApi config apiUrl = callApiWithMethod config "GET" apiUrl Nothing
+
+-- Función genérica para llamar a la API con cualquier método HTTP
+callApiWithMethod :: ApiConfig -> String -> String -> Maybe BL.ByteString -> IO (Maybe BL.ByteString)
+callApiWithMethod config httpMethod apiUrl body = do
     manager <- newTlsManager
     currentToken <- readIORef globalToken
     
     let makeRequest token = do
             initialRequest <- parseRequest apiUrl
             let request = initialRequest
-                    { method = "GET"
+                    { method = BC.pack httpMethod
                     , requestHeaders = 
                         [ ("Authorization", "Bearer " <> BC.pack token)
                         , ("Content-Type", "application/json")
                         ]
+                    , requestBody = maybe (RequestBodyBS "") RequestBodyLBS body
                     }
             
             result <- try $ httpLbs request manager
@@ -109,19 +117,20 @@ callApi config apiUrl = do
                     putStrLn $ "Error en la petición HTTP: " ++ show (e :: HttpException)
                     return Nothing
                 Right response -> do
-                    -- putStrLn $ "Todo bien en la petición HTTP: " ++ show (response)
                     let status = statusCode $ responseStatus response
-                    if status == 200
+                    if status == 200 || status == 201
                         then do
                             putStrLn "API call successful"
                             return $ Just $ responseBody response
-                        else return Nothing
+                        else do
+                            putStrLn $ "Error: Status code " ++ show status
+                            return Nothing
 
     case currentToken of
         Just token -> do
             response <- makeRequest token
             case response of
-                Just body -> return $ Just body
+                Just body' -> return $ Just body'
                 Nothing -> do
                     putStrLn "Renovando token..."
                     newToken <- authenticate (username config) (password config)
@@ -148,7 +157,7 @@ getCotizacion config symbol = do
             putStrLn "Error al llamar a la API"
             return Nothing
         Just body -> do
-            putStrLn $ "Respuesta: " ++ show body
+            -- putStrLn $ "Respuesta: " ++ show body
             -- return $ decode body
             let cotizacion = decode body :: Maybe CotizacionDetalle
             case cotizacion of
@@ -205,3 +214,10 @@ updateTicketMarketData config ticket = do
                     }
                 [] -> return Nothing
         Nothing -> return Nothing
+
+-- Función para enviar una orden de compra
+enviarOrdenCompra :: ApiConfig -> ComprarRequest -> IO Bool
+enviarOrdenCompra config orden = do
+    let url = "https://api.invertironline.com/api/v2/operar/Comprar"
+    response <- callApiWithMethod config "POST" url (Just $ encode orden)
+    return $ isJust response
