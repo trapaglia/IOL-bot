@@ -1,88 +1,99 @@
-# IOL Trading Bot
+# IOL Bot
 
-Un bot de trading para InvertirOnline (IOL) que permite gestionar operaciones automáticas basadas en niveles de precios predefinidos.
+Un bot de trading automatizado para InvertirOnline (IOL) escrito en Haskell.
 
-## Características Implementadas
+## Características
 
-### Sistema de Autenticación
-- Autenticación automática con IOL API
-- Manejo seguro de credenciales mediante archivo .env
-- Almacenamiento y gestión de tokens de acceso
+- Autenticación automática con la API de IOL
+- Sistema de trading basado en tickets con múltiples estados
+- Monitoreo de precios en tiempo real
+- Ejecución automática de órdenes de compra y venta
+- Seguimiento del dólar MEP para cada símbolo
+- Base de datos SQLite para persistencia de datos
+- Comparación del dólar MEP de cada símbolo con AL30 como referencia
 
-### Sistema de Trading
-- Definición de tickets de trading con:
-  - Múltiples niveles de precios (compra1, compra2, venta1, venta2)
-  - Stop Loss y Take Profit
-  - Estado del ticket (Waiting, FirstBuy, SecondBuy, FirstSell, SecondSell, etc.)
-  - Seguimiento de puntas actuales del mercado
-  - Timestamp de última actualización
+## Configuración
 
-### Base de Datos
-- Almacenamiento persistente en SQLite
-- Tablas implementadas:
-  - `tickets`: Almacena los niveles de trading y estados
-  - `estado_cuenta`: Información de la cuenta
-  - `tenencias`: Posiciones actuales
-  - `tokens`: Gestión de tokens de autenticación
-
-### API Integration
-- Conexión con IOL API v2
-- Obtención de estado de cuenta
-- Consulta de cotizaciones en tiempo real
-
-## Objetivos del Proyecto
-
-1. Automatizar operaciones de trading basadas en niveles de precios predefinidos
-2. Mantener un seguimiento preciso de las operaciones y su estado
-3. Minimizar el riesgo mediante stop loss automático
-4. Maximizar ganancias con take profit y múltiples niveles de entrada/salida
-
-## TO DO
-
-### Corto Plazo
-- [ ] Implementar actualización automática de puntas de mercado
-- [ ] Agregar sistema de logging para seguimiento de operaciones
-- [ ] Implementar lógica de ejecución de órdenes
-- [ ] Agregar validaciones de saldo y tenencias antes de operar
-
-### Mediano Plazo
-- [ ] Desarrollar interfaz web para monitoreo
-- [ ] Implementar sistema de notificaciones (email/telegram)
-- [ ] Agregar análisis técnico básico
-
-### Largo Plazo
-- [ ] Implementar machine learning para optimización de niveles
-- [ ] Agregar soporte para múltiples estrategias
-- [ ] Desarrollar sistema de gestión de riesgo avanzado
-- [ ] Implementar análisis de correlación entre instrumentos
-
-## Uso
-
-1. Crear archivo `.env` con credenciales:
+1. Crear un archivo `.env` en el directorio raíz con las siguientes variables:
 ```
 IOL_USERNAME=tu_usuario
-IOL_PASSWORD=tu_password
+IOL_PASSWORD=tu_contraseña
 ```
 
-2. Compilar y ejecutar:
+2. Configurar los tickets en `Main.hs` con los siguientes parámetros:
+- Nombre del ticket
+- Estado inicial (normalmente Waiting)
+- Precios objetivo para:
+  - Primera compra
+  - Segunda compra
+  - Primera venta
+  - Segunda venta
+  - Take profit
+  - Stop loss
+
+## Estrategia de Trading
+
+El bot implementa una estrategia basada en:
+
+1. Comparación del dólar MEP:
+   - Para compras: El dólar MEP del símbolo debe ser > 90% del dólar MEP de AL30
+   - Para ventas: El dólar MEP del símbolo debe ser < 110% del dólar MEP de AL30
+
+2. Estados del ticket:
+   - Waiting: Esperando primera oportunidad de compra
+   - FirstBuy: Primera compra realizada, esperando segunda compra o primera venta
+   - SecondBuy: Segunda compra realizada, esperando primera venta
+   - FirstSell: Primera venta realizada, esperando segunda venta
+   - SecondSell: Segunda venta realizada
+   - StopLoss: Stop loss alcanzado
+   - TakeProfit: Take profit alcanzado
+
+## Base de Datos
+
+El bot utiliza SQLite para almacenar:
+- Tickets y sus estados
+- Tenencias actuales
+- Estado de cuenta
+- Tokens de autenticación
+
+## Requisitos
+
+- GHC (Glasgow Haskell Compiler)
+- Cabal
+- SQLite3
+
+## Instalación
+
+1. Clonar el repositorio
+2. Instalar dependencias:
+```bash
+cabal update
+cabal install
+```
+
+3. Compilar:
+```bash
+cabal build
+```
+
+4. Ejecutar:
 ```bash
 cabal run
 ```
 
 ## Estructura del Proyecto
 
-```
-IOL-bot/
-├── app/
-│   └── Main.hs          # Punto de entrada
-├── src/
-│   ├── Api.hs          # Integración con IOL API
-│   ├── Database.hs     # Manejo de base de datos
-│   └── Types.hs        # Definiciones de tipos
-├── .env                # Credenciales (no incluido en repo)
-└── iol.db             # Base de datos SQLite
-```
+- `src/`
+  - `Api.hs`: Funciones para interactuar con la API de IOL
+  - `Database.hs`: Manejo de la base de datos SQLite
+  - `Trading.hs`: Lógica de trading y procesamiento de tickets
+  - `Types.hs`: Definición de tipos de datos
+  - `Utils.hs`: Funciones de utilidad
+- `app/`
+  - `Main.hs`: Punto de entrada y configuración inicial
 
-## Contribuir
+## Seguridad
 
-Las contribuciones son bienvenidas. Por favor, crear un issue primero para discutir los cambios propuestos.
+- Las credenciales se manejan a través de variables de entorno
+- Los tokens se almacenan de forma segura en la base de datos
+- Las operaciones requieren confirmación basada en múltiples condiciones
