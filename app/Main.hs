@@ -88,8 +88,8 @@ main = do
 
     -- Inicializar base de datos
     putStrLn "Conectando a la base de datos..."
-    conn <- resetDatabase
-    -- conn <- connectDatabase
+    -- conn <- resetDatabase
+    conn <- connectDatabase
 
     -- Obtener credenciales
     (maybeUsername, maybePassword) <- getCredentials
@@ -99,20 +99,41 @@ main = do
             let config = ApiConfig user pass
             
             -- Crear ticket de ejemplo si no existe
-            maybeTicket <- getTicket conn "GGAL"
+            -- maybeTicket <- getTicket conn "GGAL"
+            -- when (maybeTicket == Nothing) $ do
+            --     putStrLn "Creando ticket de ejemplo..."
+            --     now <- getCurrentTimeArgentina
+            --     let testTicket = Ticket
+            --             { ticketName = "GGAL"
+            --             , estado = FirstBuy
+            --             , precios = Precios
+            --                 { compra1 = 7500
+            --                 , compra2 = 6650
+            --                 , venta1 = 8000
+            --                 , venta2 = 8500
+            --                 , takeProfit = 9000
+            --                 , stopLoss = 5000.0
+            --                 }
+            --             , puntaCompra = 0.0
+            --             , puntaVenta = 0.0
+            --             , lastUpdate = now
+            --             }
+            --     insertTicket conn testTicket
+
+            maybeTicket <- getTicket conn "BBAR"
             when (maybeTicket == Nothing) $ do
                 putStrLn "Creando ticket de ejemplo..."
                 now <- getCurrentTimeArgentina
                 let testTicket = Ticket
-                        { ticketName = "GGAL"
-                        , estado = Waiting
+                        { ticketName = "BBAR"
+                        , estado = FirstBuy
                         , precios = Precios
-                            { compra1 = 7400.0
-                            , compra2 = 7100.0
-                            , venta1 = 7600.0
-                            , venta2 = 7700.0
-                            , takeProfit = 7800.0
-                            , stopLoss = 7000.0
+                            { compra1 = 7500.0
+                            , compra2 = 6650.0
+                            , venta1 = 999999.0
+                            , venta2 = 999999.0
+                            , takeProfit = 999999.0
+                            , stopLoss = 1000.0
                             }
                         , puntaCompra = 0.0
                         , puntaVenta = 0.0

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Database
     ( initializeDatabase
@@ -18,6 +19,7 @@ module Database
     , DBEstadoCuenta(..)
     , DBToken(..)
     , DBTicket(..)
+    , insertOperacion
     ) where
 
 import Database.SQLite.Simple
@@ -63,6 +65,30 @@ data DBTicket = DBTicket
     , dbPuntaVenta    :: Double
     , dbLastUpdate    :: UTCTime
     } deriving (Show)
+
+data DBOperaciones = DBOperaciones
+    { dbOperacionTicket :: T.Text
+    , dbOperacionTimestamp :: UTCTime
+    , dbOperacionPrecio :: Double
+    , dbOperacionDolarMEP :: Double
+    , dbOperacionDolarSym :: Double
+    , dbOperacionCantidad :: Int
+    , dbOperacionTipo :: T.Text
+    , dbOperacionEstado :: T.Text
+    } deriving (Show)
+
+instance FromRow DBOperaciones where
+    fromRow = DBOperaciones <$> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field
+
+instance ToRow DBOperaciones where
+    toRow DBOperaciones{..} = [SQLText dbOperacionTicket,
+                               SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" dbOperacionTimestamp,
+                               SQLFloat dbOperacionPrecio,
+                               SQLFloat dbOperacionDolarMEP,
+                               SQLFloat dbOperacionDolarSym,
+                               SQLInteger $ fromIntegral dbOperacionCantidad,
+                               SQLText dbOperacionTipo,
+                               SQLText dbOperacionEstado]
 
 instance FromRow DBTenencia where
     fromRow = DBTenencia <$> field <*> field <*> field <*> field
@@ -152,6 +178,17 @@ createTablesIfNotExist conn = do
         \punta_compra REAL NOT NULL,\
         \punta_venta REAL NOT NULL,\
         \last_update DATETIME NOT NULL)"
+    
+    execute_ conn "CREATE TABLE IF NOT EXISTS operaciones (\
+        \ticket_name TEXT NOT NULL,\
+        \timestamp DATETIME NOT NULL,\
+        \precio REAL NOT NULL,\
+        \dolar_mep REAL NOT NULL,\
+        \dolar_sym REAL NOT NULL,\
+        \cantidad INTEGER NOT NULL,\
+        \tipo TEXT NOT NULL,\
+        \estado TEXT NOT NULL)"
+        
 
 -- Inicialización de la base de datos (mantiene compatibilidad hacia atrás)
 initializeDatabase :: IO Connection
@@ -226,6 +263,19 @@ insertEstadoCuenta conn cuenta = do
                         (disponible s)
                         now)
         [] -> return ()
+
+insertOperacion :: Connection -> Operacion -> IO ()
+insertOperacion conn operacion =
+    execute conn "INSERT OR REPLACE INTO operaciones (ticket_name, timestamp, precio, dolar_mep, dolar_sym, cantidad, tipo, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        (DBOperaciones
+            (T.pack $ operacionTicket operacion)
+            (operacionTimestamp operacion)
+            (operacionPrecio operacion)
+            (operacionDolarMEP operacion)
+            (operacionDolarSym operacion)
+            (operacionCantidad operacion)
+            (T.pack $ operacionTipo operacion)
+            (T.pack $ operacionEstado operacion))
 
 insertToken :: Connection -> String -> IO ()
 insertToken conn token = do

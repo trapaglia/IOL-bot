@@ -23,11 +23,13 @@ placeBuyOrder _ config ticket = do
     let orden = OrdenRequest
             { ordenMercado = "bCBA"
             , ordenSimbolo = ticketName ticket
-            , ordenCantidad = cantidadCompra
+            , ordenCantidad = Just cantidadCompra
             , ordenPrecio = puntaCompra ticket
             , ordenPlazo = "t0"
-            , ordenValidez = formatTime defaultTimeLocale "%F-%T.%3qZ" (addUTCTime 3600 currentTime)
-            , ordenTipoOrden = "precioLimite"
+            , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
+            , ordenTipoOrden = Just "precioLimite"
+            , ordenMonto = Nothing
+            , ordenIdFuente = Nothing
             }
     
     putStrLn $ "  [ + ! + ] Comprando " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
@@ -40,11 +42,13 @@ placeSellOrder _ config ticket cantidad = do
     let orden = OrdenRequest
             { ordenMercado = "bCBA"
             , ordenSimbolo = ticketName ticket
-            , ordenCantidad = cantidadVenta
+            , ordenCantidad = Just cantidadVenta
             , ordenPrecio = puntaVenta ticket
             , ordenPlazo = "t0"
-            , ordenValidez = formatTime defaultTimeLocale "%F-%T.%3qZ" (addUTCTime 3600 currentTime)
-            , ordenTipoOrden = "precioLimite"
+            , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
+            , ordenTipoOrden = Just "precioLimite"
+            , ordenMonto = Nothing
+            , ordenIdFuente = Nothing
             }
             
     putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
@@ -58,7 +62,7 @@ processTicket conn config ticket = do
     case estado ticket of
         Waiting -> when (puntaVenta ticket <= compra1 targetPrices) $ do
             (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-            if symbolDolarMEP > standardDolarMEP * 0.9
+            if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
                 then do
                     success <- placeBuyOrder conn config ticket
                     when success $ do
@@ -67,13 +71,14 @@ processTicket conn config ticket = do
                         putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a FirstBuy"
                 else do
                     putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+                    putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
                     return ()
 
         FirstBuy -> do
             -- Check for second buy opportunity
             when (puntaVenta ticket <= compra2 targetPrices) $ do
                 (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if symbolDolarMEP > standardDolarMEP * 0.9
+                if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
                     then do
                         success <- placeBuyOrder conn config ticket
                         when success $ do
@@ -82,12 +87,13 @@ processTicket conn config ticket = do
                             putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondBuy"
                     else do
                         putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+                        putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
                         return ()
             
             -- Check for first sell opportunity
             when (puntaCompra ticket >= venta1 targetPrices) $ do
                 (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if symbolDolarMEP < standardDolarMEP * 1.1
+                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
                     then do
                         maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
                         case maybeCantidad of
@@ -109,7 +115,7 @@ processTicket conn config ticket = do
         SecondBuy -> 
             when (puntaCompra ticket >= venta1 targetPrices) $ do
                 (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if symbolDolarMEP < standardDolarMEP * 1.1
+                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
                     then do
                         maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
                         case maybeCantidad of
@@ -131,7 +137,7 @@ processTicket conn config ticket = do
         FirstSell -> 
             when (puntaCompra ticket >= venta2 targetPrices) $ do
                 (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if symbolDolarMEP < standardDolarMEP * 1.1
+                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
                     then do
                         maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
                         case maybeCantidad of
@@ -153,7 +159,7 @@ processTicket conn config ticket = do
         SecondSell -> 
             when (puntaCompra ticket >= takeProfit targetPrices) $ do
                 (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if symbolDolarMEP < standardDolarMEP * 1.1
+                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
                     then do
                         maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
                         case maybeCantidad of

@@ -85,7 +85,7 @@ authenticate user pass = do
                         mToken = extractToken body
                     case mToken of
                         Just token -> do
-                            putStrLn $ "\nToken obtenido: " ++ token
+                            -- putStrLn $ "\nToken obtenido: " ++ token
                             writeIORef globalToken (Just token)
                             return $ Just token
                         Nothing -> do
@@ -225,6 +225,7 @@ enviarOrdenCompra :: ApiConfig -> OrdenRequest -> IO Bool
 enviarOrdenCompra config orden = do
     let url = "https://api.invertironline.com/api/v2/operar/Comprar"
     response <- callApiWithMethod config "POST" url (Just $ encode orden)
+    putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ordenSimbolo orden ++ " a " ++ show (ordenPrecio orden)
     return $ isJust response
 
 -- Función para enviar una orden de venta
@@ -271,15 +272,9 @@ getPortfolio config = do
             putStrLn "Error al obtener el portafolio"
             return Nothing
         Just body -> do
-            putStrLn "\nRespuesta como texto:"
-            putStrLn $ BL.unpack body
-            putStrLn "\nIntentando decodificar como PortfolioResponse..."
             let portfolio = decode body :: Maybe PortfolioResponse
             case portfolio of
-                Just p -> do
-                    putStrLn "Decodificación exitosa:"
-                    putStrLn $ show p
-                    return $ Just p
+                Just p -> return $ Just p
                 Nothing -> do
                     putStrLn "Error al decodificar el portafolio"
                     return Nothing

@@ -18,6 +18,7 @@ module Types
     , AssetTitle(..)
     , AssetParking(..)
     , DolarMEP(..)
+    , Operacion(..)
     , montoOperacion
     ) where
 
@@ -152,9 +153,8 @@ data Cuenta = Cuenta
 instance FromJSON Cuenta where
     parseJSON = genericParseJSON defaultOptions
 
-data EstadoCuenta = EstadoCuenta
-    { cuentas :: [Cuenta]
-    } deriving (Show, Generic)
+newtype EstadoCuenta = EstadoCuenta { cuentas :: [Cuenta] } 
+    deriving (Show, Generic)
 
 instance FromJSON EstadoCuenta where
     parseJSON = genericParseJSON defaultOptions
@@ -190,17 +190,44 @@ data Ticket = Ticket
 
 -- Tipo para la orden de compra
 data OrdenRequest = OrdenRequest
-    { ordenMercado :: String
+    { ordenMercado :: String      -- ['bCBA', 'nYSE', 'nASDAQ', 'aMEX', 'bCS', 'rOFX']
     , ordenSimbolo :: String
-    , ordenCantidad :: Int
+    , ordenCantidad :: Maybe Int  -- opcional
     , ordenPrecio :: Double
-    , ordenPlazo :: String
+    , ordenPlazo :: String        -- ['t0', 't1', 't2', 't3']
     , ordenValidez :: String
-    , ordenTipoOrden :: String
+    , ordenTipoOrden :: Maybe String  -- opcional: ['precioLimite', 'precioMercado']
+    , ordenMonto :: Maybe Double      -- opcional
+    , ordenIdFuente :: Maybe Int      -- opcional
     } deriving (Show, Generic)
 
 instance ToJSON OrdenRequest where
     toJSON = genericToJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 5 s of  -- quita el prefijo "orden"
+            "Mercado" -> "mercado"
+            "Simbolo" -> "simbolo"
+            "Cantidad" -> "cantidad"
+            "Precio" -> "precio"
+            "Plazo" -> "plazo"
+            "Validez" -> "validez"
+            "TipoOrden" -> "tipoOrden"
+            "Monto" -> "monto"
+            "IdFuente" -> "idFuente"
+            x -> x
+        , omitNothingFields = True  -- omite campos que son Nothing
+        }
+
+-- Tipo para operaciones
+data Operacion = Operacion
+    { operacionTicket :: String
+    , operacionTimestamp :: UTCTime
+    , operacionPrecio :: Double
+    , operacionDolarMEP :: Double
+    , operacionDolarSym :: Double
+    , operacionCantidad :: Int
+    , operacionTipo :: String
+    , operacionEstado :: String
+    } deriving (Show, Generic)
 
 -- Configuración global
 montoOperacion :: Double
