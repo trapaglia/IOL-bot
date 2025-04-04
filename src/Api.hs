@@ -281,7 +281,7 @@ getPortfolio config = do
                     return Nothing
 
 -- Función para obtener la cantidad de un símbolo específico del portafolio
-getCantidadPortfolio :: ApiConfig -> String -> IO (Maybe Double)
+getCantidadPortfolio :: ApiConfig -> String -> IO (Maybe Int)
 getCantidadPortfolio config symbol = do
     maybePortfolio <- getPortfolio config
     case maybePortfolio of

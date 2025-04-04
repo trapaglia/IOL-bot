@@ -48,7 +48,7 @@ instance FromJSON AssetParking where
     parseJSON = genericParseJSON defaultOptions
 
 data PortfolioAsset = PortfolioAsset
-    { assetCantidad :: Double
+    { assetCantidad :: Int
     , assetComprometido :: Double
     , assetPuntosVariacion :: Double
     , assetVariacionDiaria :: Double
