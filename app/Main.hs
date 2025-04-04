@@ -4,14 +4,13 @@
 module Main (main) where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), PortfolioAsset(..), AssetTitle(..), PortfolioResponse(..))
+import Types (ApiConfig(..), Precios(..), Ticket(..), PortfolioAsset(..), AssetTitle(..), PortfolioResponse(..))
 import Api (getCredentials, updateTicketMarketData, getPortfolio)
 import Database
 import Trading (processTicket)
-import Utils (getCurrentTimeArgentina)
 import Data.Text (pack)
 import Database.SQLite.Simple (Connection, close)
-import Control.Monad (forM_, when)
+import Control.Monad (forM_)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
@@ -98,48 +97,26 @@ main = do
             putStrLn "Credentials OK!\n"
             let config = ApiConfig user pass
             
-            -- Crear ticket de ejemplo si no existe
-            -- maybeTicket <- getTicket conn "GGAL"
+            -- maybeTicket <- getTicket conn "METR"
             -- when (maybeTicket == Nothing) $ do
             --     putStrLn "Creando ticket de ejemplo..."
             --     now <- getCurrentTimeArgentina
             --     let testTicket = Ticket
-            --             { ticketName = "GGAL"
-            --             , estado = FirstBuy
+            --             { ticketName = "METR"
+            --             , estado = SecondBuy
             --             , precios = Precios
-            --                 { compra1 = 7500
-            --                 , compra2 = 6650
-            --                 , venta1 = 8000
-            --                 , venta2 = 8500
-            --                 , takeProfit = 9000
-            --                 , stopLoss = 5000.0
+            --                 { compra1 = 1820.0
+            --                 , compra2 = 1820.0
+            --                 , venta1 = 999999.0
+            --                 , venta2 = 999999.0
+            --                 , takeProfit = 999999.0
+            --                 , stopLoss = 10.0
             --                 }
             --             , puntaCompra = 0.0
             --             , puntaVenta = 0.0
             --             , lastUpdate = now
             --             }
             --     insertTicket conn testTicket
-
-            maybeTicket <- getTicket conn "EDN"
-            when (maybeTicket == Nothing) $ do
-                putStrLn "Creando ticket de ejemplo..."
-                now <- getCurrentTimeArgentina
-                let testTicket = Ticket
-                        { ticketName = "EDN"
-                        , estado = Waiting
-                        , precios = Precios
-                            { compra1 = 1800.0
-                            , compra2 = 1500.0
-                            , venta1 = 999999.0
-                            , venta2 = 999999.0
-                            , takeProfit = 999999.0
-                            , stopLoss = 1000.0
-                            }
-                        , puntaCompra = 0.0
-                        , puntaVenta = 0.0
-                        , lastUpdate = now
-                        }
-                insertTicket conn testTicket
 
             putStrLn "Obteniendo portafolio..."
             maybePortfolio <- getPortfolio config

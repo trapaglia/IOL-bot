@@ -85,7 +85,7 @@ authenticate user pass = do
                         mToken = extractToken body
                     case mToken of
                         Just token -> do
-                            -- putStrLn $ "\nToken obtenido: " ++ token
+                            putStrLn $ "\nToken obtenido: " ++ token
                             writeIORef globalToken (Just token)
                             return $ Just token
                         Nothing -> do
@@ -167,7 +167,7 @@ getCotizacion config symbol = do
             let cotizacion = decode body :: Maybe CotizacionDetalle
             case cotizacion of
                 Just cot -> do
-                    putStrLn $ "Cotización: " ++ show cot
+                    -- putStrLn $ "Cotización: " ++ show cot
                     return $ Just cot
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta"
