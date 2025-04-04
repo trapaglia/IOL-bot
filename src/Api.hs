@@ -10,6 +10,7 @@ module Api
     , updateTicketMarketData
     , enviarOrdenCompra
     , getDolarMEP
+    , compareMEP
     ) where
 
 import System.Environment (lookupEnv)
@@ -238,3 +239,14 @@ getDolarMEP config symbol = do
                 Nothing -> do
                     putStrLn $ "Error al decodificar la respuesta del dólar MEP simbolo " ++ symbol
                     return Nothing
+
+-- Función para comparar el dólar MEP con el AL30
+compareMEP :: ApiConfig -> String -> IO (Double, Double)
+compareMEP config symbol = do
+    symbolDolarMEP <- getDolarMEP config symbol
+    standardDolarMEP <- getDolarMEP config "AL30"
+    case (symbolDolarMEP, standardDolarMEP) of
+        (Just (DolarMEP symbolMEP), Just (DolarMEP standardMEP)) -> return (symbolMEP, standardMEP)
+        (Nothing, Just (DolarMEP standardMEP)) -> return(0.0, standardMEP)
+        _ -> return (0.0, 0.0)
+    
