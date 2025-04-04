@@ -9,7 +9,7 @@ import Api (getCredentials, updateTicketMarketData)
 import Database
 import Trading (processTicket)
 import Utils (getCurrentTimeArgentina)
-import qualified Data.Text as T
+import qualified Data.Text as T()
 import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_, when)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)

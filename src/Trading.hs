@@ -7,7 +7,8 @@ module Trading
     ) where
 
 import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..))
-import Database (Connection, updateTicket)
+import Database.SQLite.Simple (Connection)
+import Database (updateTicket)
 import Control.Monad (when)
 
 -- Funciones placeholder para operaciones de trading
