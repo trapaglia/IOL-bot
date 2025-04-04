@@ -120,16 +120,16 @@ main = do
             --             }
             --     insertTicket conn testTicket
 
-            maybeTicket <- getTicket conn "BBAR"
+            maybeTicket <- getTicket conn "EDN"
             when (maybeTicket == Nothing) $ do
                 putStrLn "Creando ticket de ejemplo..."
                 now <- getCurrentTimeArgentina
                 let testTicket = Ticket
-                        { ticketName = "BBAR"
-                        , estado = FirstBuy
+                        { ticketName = "EDN"
+                        , estado = Waiting
                         , precios = Precios
-                            { compra1 = 7500.0
-                            , compra2 = 6650.0
+                            { compra1 = 1800.0
+                            , compra2 = 1500.0
                             , venta1 = 999999.0
                             , venta2 = 999999.0
                             , takeProfit = 999999.0

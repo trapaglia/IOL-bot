@@ -33,7 +33,17 @@ placeBuyOrder _ config ticket = do
             }
     
     putStrLn $ "  [ + ! + ] Comprando " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
-    enviarOrdenCompra config orden
+    rsp <- enviarOrdenCompra config orden
+    case rsp of
+        True -> do
+            putStrLn "  [ + ! + ] Compra exitosa"
+            let logFileName = "ordenes_ejecutadas.log"
+            let ordenLog = "Compra de " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
+                           " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
+                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n"
+            appendFile logFileName ordenLog
+        False -> putStrLn "  [ - ! - ] Compra fallida"
+    return rsp
 
 placeSellOrder :: Connection -> ApiConfig -> Ticket -> Int -> IO Bool
 placeSellOrder _ config ticket cantidad = do
