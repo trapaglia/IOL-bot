@@ -14,6 +14,7 @@ module Types
     , Ticket(..)
     , ComprarRequest(..)
     , montoOperacion
+    , DolarMEP(..)
     ) where
 
 import Data.Aeson (FromJSON(..), ToJSON(..), Value(Object), (.:), genericParseJSON, genericToJSON, defaultOptions)
@@ -125,3 +126,10 @@ instance ToJSON ComprarRequest where
 -- Configuración global
 montoOperacion :: Double
 montoOperacion = 10000.0  -- Valor inicial, ajustar según necesidad
+
+-- Tipo para la cotización del dólar MEP
+newtype DolarMEP = DolarMEP Double
+    deriving (Show, Generic)
+
+instance FromJSON DolarMEP where
+    parseJSON = genericParseJSON defaultOptions

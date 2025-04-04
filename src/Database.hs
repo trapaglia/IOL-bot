@@ -162,6 +162,7 @@ resetDatabase :: IO Connection
 resetDatabase = do
     conn <- open "iol.db"
     -- Eliminar todas las tablas existentes
+    execute_ conn "DROP TABLE IF EXISTS cotizaciones"
     execute_ conn "DROP TABLE IF EXISTS tenencias"
     execute_ conn "DROP TABLE IF EXISTS estado_cuenta"
     execute_ conn "DROP TABLE IF EXISTS tokens"
@@ -281,4 +282,4 @@ getAllTickets conn = do
     return $ map dbTicketToTicket results
 
 updateTicket :: Connection -> Ticket -> IO ()
-updateTicket conn = insertTicket conn  -- Using REPLACE INTO in insertTicket makes this equivalent
+updateTicket = insertTicket -- Using REPLACE INTO in insertTicket makes this equivalent

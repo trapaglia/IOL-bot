@@ -9,6 +9,7 @@ module Api
     , getEstadoCuenta
     , updateTicketMarketData
     , enviarOrdenCompra
+    , getDolarMEP
     ) where
 
 import System.Environment (lookupEnv)
@@ -75,12 +76,10 @@ authenticate user pass = do
             if status == 200
                 then do
                     let body = responseBody response
-                    -- putStrLn $ "Respuesta recibida: " ++ show body
-                    -- Extraer el token de la respuesta usando la nueva función
-                    let mToken = extractToken body
+                        mToken = extractToken body
                     case mToken of
                         Just token -> do
-                            -- putStrLn $ "\nToken obtenido: " ++ token
+                            putStrLn $ "\nToken obtenido: " ++ token
                             writeIORef globalToken (Just token)
                             return $ Just token
                         Nothing -> do
@@ -221,3 +220,21 @@ enviarOrdenCompra config orden = do
     let url = "https://api.invertironline.com/api/v2/operar/Comprar"
     response <- callApiWithMethod config "POST" url (Just $ encode orden)
     return $ isJust response
+
+-- Función para obtener la cotización del dólar MEP
+getDolarMEP :: ApiConfig -> String -> IO (Maybe DolarMEP)
+getDolarMEP config symbol = do
+    response <- callApi config $ "https://api.invertironline.com/api/v2/Cotizaciones/MEP/" ++ symbol
+    case response of
+        Nothing -> do
+            putStrLn $ "Error al obtener cotización del dólar MEP simbolo " ++ symbol
+            return Nothing
+        Just body -> do
+            let dolarMEP = decode body :: Maybe DolarMEP
+            case dolarMEP of
+                Just mep -> do
+                    putStrLn $ "Dólar MEP simbolo " ++ symbol ++ ": " ++ show mep
+                    return $ Just mep
+                Nothing -> do
+                    putStrLn $ "Error al decodificar la respuesta del dólar MEP simbolo " ++ symbol
+                    return Nothing

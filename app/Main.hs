@@ -5,7 +5,7 @@ module Main where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
 import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..))
-import Api (getCredentials, updateTicketMarketData)
+import Api (getCredentials, updateTicketMarketData, getDolarMEP)
 import Database
 import Trading (processTicket)
 import Utils (getCurrentTimeArgentina)
@@ -121,6 +121,10 @@ main = do
                         }
                 insertTicket conn testTicket
 
+            -- Primero obtener dolar MEP
+            putStrLn "Obteniendo cotización del dólar MEP..."
+            _ <- getDolarMEP config "GGAL"
+            putStrLn "Cotización del dólar MEP obtenida\n"
             -- Iniciar bucle principal con manejo de interrupciones
             runMainLoop conn config
             
