@@ -21,7 +21,7 @@ module Types
     , montoOperacion
     ) where
 
-import Data.Aeson (FromJSON(..), ToJSON(..), Value(Object), (.:), genericParseJSON, genericToJSON, defaultOptions)
+import Data.Aeson (FromJSON(..), ToJSON(..), Value(Object), (.:), genericParseJSON, genericToJSON, defaultOptions, Options(..))
 import Control.Monad (mzero)
 import GHC.Generics
 import Data.Time.Clock (UTCTime)
@@ -39,6 +39,16 @@ data AssetTitle = AssetTitle
 
 instance FromJSON AssetTitle where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 6 s of  -- quita el prefijo "titulo"
+            "Simbolo" -> "simbolo"
+            "Descripcion" -> "descripcion"
+            "Pais" -> "pais"
+            "Mercado" -> "mercado"
+            "Tipo" -> "tipo"
+            "Plazo" -> "plazo"
+            "Moneda" -> "moneda"
+            x -> x
+        }
 
 data AssetParking = AssetParking
     { disponibleInmediato :: Double
@@ -48,7 +58,7 @@ instance FromJSON AssetParking where
     parseJSON = genericParseJSON defaultOptions
 
 data PortfolioAsset = PortfolioAsset
-    { assetCantidad :: Int
+    { assetCantidad :: Double
     , assetComprometido :: Double
     , assetPuntosVariacion :: Double
     , assetVariacionDiaria :: Double
@@ -58,11 +68,25 @@ data PortfolioAsset = PortfolioAsset
     , assetGananciaDinero :: Double
     , assetValorizado :: Double
     , assetTitulo :: AssetTitle
-    , assetParking :: AssetParking
+    , assetParking :: Maybe AssetParking
     } deriving (Show, Generic)
 
 instance FromJSON PortfolioAsset where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 5 s of  -- quita el prefijo "asset"
+            "Cantidad" -> "cantidad"
+            "Comprometido" -> "comprometido"
+            "PuntosVariacion" -> "puntosVariacion"
+            "VariacionDiaria" -> "variacionDiaria"
+            "UltimoPrecio" -> "ultimoPrecio"
+            "Ppc" -> "ppc"
+            "GananciaPorcentaje" -> "gananciaPorcentaje"
+            "GananciaDinero" -> "gananciaDinero"
+            "Valorizado" -> "valorizado"
+            "Titulo" -> "titulo"
+            "Parking" -> "parking"
+            x -> x
+        }
 
 data PortfolioResponse = PortfolioResponse
     { portfolioPais :: String
@@ -71,6 +95,11 @@ data PortfolioResponse = PortfolioResponse
 
 instance FromJSON PortfolioResponse where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 9 s of  -- quita el prefijo "portfolio"
+            "Pais" -> "pais"
+            "Activos" -> "activos"
+            x -> x
+        }
 
 -- Tipo de dato para almacenar el token
 newtype AuthResponse = AuthResponse { accessToken :: String }

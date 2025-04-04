@@ -1,21 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module Main (main) where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..))
-import Api (getCredentials, updateTicketMarketData)
+import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), PortfolioAsset(..), AssetTitle(..), PortfolioResponse(..))
+import Api (getCredentials, updateTicketMarketData, getPortfolio)
 import Database
 import Trading (processTicket)
 import Utils (getCurrentTimeArgentina)
-import qualified Data.Text as T()
+import Data.Text (pack)
 import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_, when)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
-
 -- Función para actualizar todos los tickets
 updateAllTickets :: Connection -> ApiConfig -> IO ()
 updateAllTickets conn config = do
@@ -120,6 +119,15 @@ main = do
                         , lastUpdate = now
                         }
                 insertTicket conn testTicket
+
+            putStrLn "Obteniendo portafolio..."
+            maybePortfolio <- getPortfolio config
+            case maybePortfolio of
+                Just portfolio -> do
+                    putStrLn "Portafolio obtenido correctamente"
+                    let tenencias = map (\asset -> (pack $ tituloSimbolo $ assetTitulo asset, round $ assetCantidad asset, assetUltimoPrecio asset)) (portfolioActivos portfolio)
+                    mapM_ (\(symbol, cantidad, precio) -> insertTenencia conn symbol cantidad precio) tenencias
+                Nothing -> putStrLn "Error al obtener el portafolio"
 
             -- Iniciar bucle principal con manejo de interrupciones
             runMainLoop conn config

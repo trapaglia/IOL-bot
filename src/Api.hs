@@ -21,10 +21,10 @@ import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
 import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString.Lazy.Char8 as BL
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Status (statusCode)
-import qualified Data.ByteString.Lazy as BL
 import Control.Exception (try)
 import Data.IORef
 import Data.Maybe (isJust)
@@ -271,10 +271,14 @@ getPortfolio config = do
             putStrLn "Error al obtener el portafolio"
             return Nothing
         Just body -> do
+            putStrLn "\nRespuesta como texto:"
+            putStrLn $ BL.unpack body
+            putStrLn "\nIntentando decodificar como PortfolioResponse..."
             let portfolio = decode body :: Maybe PortfolioResponse
             case portfolio of
                 Just p -> do
-                    putStrLn "Portafolio obtenido correctamente"
+                    putStrLn "Decodificación exitosa:"
+                    putStrLn $ show p
                     return $ Just p
                 Nothing -> do
                     putStrLn "Error al decodificar el portafolio"
@@ -294,4 +298,4 @@ getCantidadPortfolio config symbol = do
                     return Nothing
                 Just asset -> do
                     putStrLn $ "Cantidad de " ++ symbol ++ ": " ++ show (assetCantidad asset)
-                    return $ Just (assetCantidad asset)
+                    return $ Just (round $ assetCantidad asset)
