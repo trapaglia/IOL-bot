@@ -115,40 +115,38 @@ instance FromJSON AuthResponse where
 
 -- Tipos para la cotización
 data Punta = Punta
-    { precioCompra :: Double
-    , precioVenta :: Double
+    { puntaPrecioCompra :: Double
+    , puntaPrecioVenta :: Double
     } deriving (Show, Generic)
 
 instance FromJSON Punta where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 5 s of  -- quita el prefijo "punta"
+            "PrecioCompra" -> "precioCompra"
+            "PrecioVenta" -> "precioVenta"
+            x -> x
+        }
 
 data PuntaInstrumento = PuntaInstrumento
-    { puntaInstCantidadCompra :: Int
-    , puntaInstPrecioCompra :: Double
-    , puntaInstPrecioVenta :: Double
-    , puntaInstCantidadVenta :: Int
+    { cantidadCompra :: Double
+    , precioCompra :: Double
+    , precioVenta :: Double
+    , cantidadVenta :: Double
     } deriving (Show, Generic)
 
 instance FromJSON PuntaInstrumento where
     parseJSON = genericParseJSON defaultOptions
-        { fieldLabelModifier = \s -> case drop 8 s of  -- quita el prefijo "puntaInst"
-            "CantidadCompra" -> "cantidadCompra"
-            "PrecioCompra" -> "precioCompra"
-            "PrecioVenta" -> "precioVenta"
-            "CantidadVenta" -> "cantidadVenta"
-            x -> x
-        }
 
 data Instrumento = Instrumento
     { instSimbolo :: String
-    , instPuntas :: PuntaInstrumento
+    , instPuntas :: Maybe PuntaInstrumento
     , instUltimoPrecio :: Double
     , instVariacionPorcentual :: Double
     , instApertura :: Double
     , instMaximo :: Double
     , instMinimo :: Double
     , instUltimoCierre :: Double
-    , instVolumen :: Int
+    , instVolumen :: Double
     , instCantidadOperaciones :: Int
     , instFecha :: String
     , instTipoOpcion :: Maybe String
@@ -202,6 +200,10 @@ newtype CotizacionesResponse = CotizacionesResponse
 
 instance FromJSON CotizacionesResponse where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case s of
+            "titulos" -> "titulos"
+            x -> x
+        }
 
 -- Configuración para las llamadas a la API
 data ApiConfig = ApiConfig 

@@ -20,7 +20,7 @@ module Api
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (decode, encode)
+import Data.Aeson (decode, encode, eitherDecode)
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Network.HTTP.Client
@@ -205,21 +205,26 @@ getEstadoCuenta config = do
                     putStrLn "Error al decodificar la respuesta"
                     return Nothing
 
--- Actualizar ticket con información del mercado
+-- Función para actualizar los datos de mercado de un ticket
 updateTicketMarketData :: ApiConfig -> Ticket -> IO (Maybe Ticket)
 updateTicketMarketData config ticket = do
-    maybeCotizacion <- getCotizacion config (ticketName ticket)
-    case maybeCotizacion of
-        Just cotizacion -> do
-            now <- getCurrentTimeArgentina
-            case puntas cotizacion of
-                (p:_) -> return $ Just $ ticket 
-                    { puntaCompra = precioCompra p
-                    , puntaVenta = precioVenta p
-                    , lastUpdate = now
-                    }
-                [] -> return Nothing
+    now <- getCurrentTimeArgentina
+    let url = "https://api.invertironline.com/api/v2/Cotizaciones/Acciones/argentina/" ++ ticketName ticket
+    response <- callApi config url
+    case response of
         Nothing -> return Nothing
+        Just body -> do
+            let cotizacion = decode body :: Maybe CotizacionDetalle
+            case cotizacion of
+                Just cot -> do
+                    case puntas cot of
+                        (p:_) -> return $ Just $ ticket 
+                            { puntaCompra = puntaPrecioCompra p
+                            , puntaVenta = puntaPrecioVenta p
+                            , lastUpdate = now
+                            }
+                        [] -> return Nothing
+                Nothing -> return Nothing
 
 -- Función para enviar una orden de compra
 enviarOrdenCompra :: ApiConfig -> OrdenRequest -> IO Bool
@@ -306,6 +311,7 @@ getAllCotizaciones config = do
             putStrLn "Error al obtener las cotizaciones"
             return Nothing
         Just body -> do
+            -- putStrLn $ "Respuesta recibida: " ++ show body
             let cotizaciones = decode body :: Maybe CotizacionesResponse
             case cotizaciones of
                 Just cot -> do
@@ -313,4 +319,5 @@ getAllCotizaciones config = do
                     return $ Just cot
                 Nothing -> do
                     putStrLn "Error al decodificar las cotizaciones"
+                    putStrLn $ "Error de parseo: " ++ show (eitherDecode body :: Either String CotizacionesResponse)
                     return Nothing

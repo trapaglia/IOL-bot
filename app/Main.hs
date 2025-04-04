@@ -4,37 +4,63 @@
 module Main (main) where
 
 import System.IO (hSetBuffering, BufferMode(NoBuffering), stdout, stderr)
-import Types (ApiConfig(..), Precios(..), Ticket(..), PortfolioAsset(..), AssetTitle(..), PortfolioResponse(..))
-import Api (getCredentials, updateTicketMarketData, getPortfolio)
+import Types ( ApiConfig(..), Precios(..), Ticket(..)
+            , CotizacionesResponse(..)
+            , Instrumento(..), PuntaInstrumento(..)
+            , instSimbolo, instPuntas, instVolumen, instCantidadOperaciones
+            , precioCompra, precioVenta
+            )
+import Api (getCredentials, getAllCotizaciones)
 import Database
 import Trading (processTicket)
-import Data.Text (pack)
 import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
+import Data.List (find)
+import Text.Printf (printf)
+import Utils (getCurrentTimeArgentina)
+
 -- Función para actualizar todos los tickets
 updateAllTickets :: Connection -> ApiConfig -> IO ()
 updateAllTickets conn config = do
     putStrLn "\nActualizando tickets..."
     allTickets <- getAllTickets conn
-    forM_ allTickets $ \ticket -> do
-        putStrLn $ "Actualizando " ++ ticketName ticket ++ "..."
-        maybeUpdatedTicket <- updateTicketMarketData config ticket
-        case maybeUpdatedTicket of
-            Just updatedTicket -> do
-                updateTicket conn updatedTicket
-                putStrLn $ "  Punta Compra: " ++ show (puntaCompra updatedTicket)
-                putStrLn $ "  Punta Venta: " ++ show (puntaVenta updatedTicket)
-                putStrLn $ "  Estado: " ++ show (estado updatedTicket)
-                putStrLn $ "  Precio de compra1: " ++ show (compra1 $ precios updatedTicket)
-                putStrLn $ "  Precio de venta1: " ++ show (venta1 $ precios updatedTicket)
-                putStrLn $ "  Precio de compra2: " ++ show (compra2 $ precios updatedTicket)
-                putStrLn $ "  Precio de venta2: " ++ show (venta2 $ precios updatedTicket)
+    
+    -- Obtener todas las cotizaciones de una vez
+    maybeCotizaciones <- getAllCotizaciones config
+    case maybeCotizaciones of
+        Nothing -> putStrLn "Error al obtener cotizaciones"
+        Just cotizaciones -> do
+            now <- getCurrentTimeArgentina
+            -- Para cada ticket, buscar su cotización en la respuesta
+            forM_ allTickets $ \ticket -> do
+                putStrLn $ "Actualizando " ++ ticketName ticket ++ "..."
+                let maybeInstrumento = find (\inst -> instSimbolo inst == ticketName ticket) (titulos cotizaciones)
+                case maybeInstrumento of
+                    Just instrumento -> do
+                        case instPuntas instrumento of
+                            Just puntas -> do
+                                let updatedTicket = ticket 
+                                        { puntaCompra = precioCompra puntas
+                                        , puntaVenta = precioVenta puntas
+                                        , lastUpdate = now
+                                        }
+                                updateTicket conn updatedTicket
+                                putStrLn $ "  Punta Compra: " ++ show (puntaCompra updatedTicket)
+                                putStrLn $ "  Punta Venta: " ++ show (puntaVenta updatedTicket)
+                                putStrLn $ "  Estado: " ++ show (estado updatedTicket)
+                                putStrLn $ "  Precio de compra1: " ++ show (compra1 $ precios updatedTicket)
+                                putStrLn $ "  Precio de venta1: " ++ show (venta1 $ precios updatedTicket)
+                                putStrLn $ "  Precio de compra2: " ++ show (compra2 $ precios updatedTicket)
+                                putStrLn $ "  Precio de venta2: " ++ show (venta2 $ precios updatedTicket)
+                                putStrLn $ "  Volumen: " ++ printf "%.2f" (instVolumen instrumento)
+                                putStrLn $ "  Operaciones: " ++ show (instCantidadOperaciones instrumento)
 
-                processTicket conn config updatedTicket
-            Nothing -> putStrLn $ "  Error al actualizar " ++ ticketName ticket
+                                processTicket conn config updatedTicket
+                            Nothing -> putStrLn $ "  No hay puntas disponibles para " ++ ticketName ticket
+                    Nothing -> putStrLn $ "  No se encontró cotización para " ++ ticketName ticket
 
 -- Bucle principal del programa
 mainLoop :: Connection -> ApiConfig -> MVar () -> IO ()
@@ -118,16 +144,17 @@ main = do
             --             }
             --     insertTicket conn testTicket
 
-            putStrLn "Obteniendo portafolio..."
-            maybePortfolio <- getPortfolio config
-            case maybePortfolio of
-                Just portfolio -> do
-                    putStrLn "Portafolio obtenido correctamente"
-                    let tenencias = map (\asset -> (pack $ tituloSimbolo $ assetTitulo asset, round $ assetCantidad asset, assetUltimoPrecio asset)) (portfolioActivos portfolio)
-                    mapM_ (\(symbol, cantidad, precio) -> insertTenencia conn symbol cantidad precio) tenencias
-                Nothing -> putStrLn "Error al obtener el portafolio"
+            -- putStrLn "Obteniendo portafolio..."
+            -- maybePortfolio <- getPortfolio config
+            -- case maybePortfolio of
+            --     Just portfolio -> do
+            --         putStrLn "Portafolio obtenido correctamente"
+            --         let tenencias = map (\asset -> (pack $ tituloSimbolo $ assetTitulo asset, round $ assetCantidad asset, assetUltimoPrecio asset)) (portfolioActivos portfolio)
+            --         mapM_ (\(symbol, cantidad, precio) -> insertTenencia conn symbol cantidad precio) tenencias
+            --     Nothing -> putStrLn "Error al obtener el portafolio"
 
             -- Iniciar bucle principal con manejo de interrupciones
+
             runMainLoop conn config
             
         _ -> do
