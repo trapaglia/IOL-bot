@@ -6,33 +6,55 @@ module Trading
     , placeSellOrder
     ) where
 
-import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), ComprarRequest(..), montoOperacion)
+import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), montoOperacion)
 import Database.SQLite.Simple (Connection)
 import Database (updateTicket)
 import Control.Monad (when)
-import Api (enviarOrdenCompra, compareMEP)
+import Api (enviarOrdenCompra, compareMEP, enviarOrdenVenta, OrdenRequest(..), getCantidadPortfolio)
+import Utils (getCurrentTimeArgentina)
+import Data.Time.Format (formatTime, defaultTimeLocale)
+import Data.Time (addUTCTime)
 
 -- Funciones placeholder para operaciones de trading
 placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
 placeBuyOrder _ config ticket = do
     let cantidadCompra = floor (montoOperacion / puntaCompra ticket)
-        orden = ComprarRequest
-            { compraMercado = "bCBA"
-            , compraSimbolo = ticketName ticket
-            , compraCantidad = cantidadCompra
-            , compraPrecio = puntaCompra ticket
-            , compraPlazo = "t0"
-            , compraValidez = "immediateOrCancel"  -- Orden inmediata o cancelada
-            , compraTipoOrden = "precioLimite"
+    currentTime <- getCurrentTimeArgentina
+    let orden = OrdenRequest
+            { ordenMercado = "bCBA"
+            , ordenSimbolo = ticketName ticket
+            , ordenCantidad = cantidadCompra
+            , ordenPrecio = puntaCompra ticket
+            , ordenPlazo = "t0"
+            , ordenValidez = formatTime defaultTimeLocale "%F-%T.%3qZ" (addUTCTime 3600 currentTime)
+            , ordenTipoOrden = "precioLimite"
             }
     
     putStrLn $ "  [ + ! + ] Comprando " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
     enviarOrdenCompra config orden
 
 placeSellOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
-placeSellOrder _ _ ticket = do
-    putStrLn $ "[PLACEHOLDER] Vendiendo " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
-    return True
+placeSellOrder _ config ticket = do
+    maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
+    case maybeCantidad of
+        Nothing -> do
+            putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
+            return False
+        Just cantidad -> do
+            currentTime <- getCurrentTimeArgentina
+            let cantidadVenta = floor cantidad :: Int
+            let orden = OrdenRequest
+                    { ordenMercado = "bCBA"
+                    , ordenSimbolo = ticketName ticket
+                    , ordenCantidad = cantidadVenta
+                    , ordenPrecio = puntaVenta ticket
+                    , ordenPlazo = "t0"
+                    , ordenValidez = formatTime defaultTimeLocale "%F-%T.%3qZ" (addUTCTime 3600 currentTime)
+                    , ordenTipoOrden = "precioLimite"
+                    }
+            
+            putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
+            enviarOrdenVenta config orden
 
 -- Función para procesar un ticket según su estado y precios actuales
 processTicket :: Connection -> ApiConfig -> Ticket -> IO ()

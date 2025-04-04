@@ -12,15 +12,65 @@ module Types
     , Estado(..)
     , Precios(..)
     , Ticket(..)
-    , ComprarRequest(..)
-    , montoOperacion
+    , OrdenRequest(..)
+    , PortfolioResponse(..)
+    , PortfolioAsset(..)
+    , AssetTitle(..)
+    , AssetParking(..)
     , DolarMEP(..)
+    , montoOperacion
     ) where
 
 import Data.Aeson (FromJSON(..), ToJSON(..), Value(Object), (.:), genericParseJSON, genericToJSON, defaultOptions)
 import Control.Monad (mzero)
 import GHC.Generics
 import Data.Time.Clock (UTCTime)
+
+-- Tipos para el portafolio
+data AssetTitle = AssetTitle
+    { tituloSimbolo :: String
+    , tituloDescripcion :: String
+    , tituloPais :: String
+    , tituloMercado :: String
+    , tituloTipo :: String
+    , tituloPlazo :: String
+    , tituloMoneda :: String
+    } deriving (Show, Generic)
+
+instance FromJSON AssetTitle where
+    parseJSON = genericParseJSON defaultOptions
+
+data AssetParking = AssetParking
+    { disponibleInmediato :: Double
+    } deriving (Show, Generic)
+
+instance FromJSON AssetParking where
+    parseJSON = genericParseJSON defaultOptions
+
+data PortfolioAsset = PortfolioAsset
+    { assetCantidad :: Double
+    , assetComprometido :: Double
+    , assetPuntosVariacion :: Double
+    , assetVariacionDiaria :: Double
+    , assetUltimoPrecio :: Double
+    , assetPpc :: Double
+    , assetGananciaPorcentaje :: Double
+    , assetGananciaDinero :: Double
+    , assetValorizado :: Double
+    , assetTitulo :: AssetTitle
+    , assetParking :: AssetParking
+    } deriving (Show, Generic)
+
+instance FromJSON PortfolioAsset where
+    parseJSON = genericParseJSON defaultOptions
+
+data PortfolioResponse = PortfolioResponse
+    { portfolioPais :: String
+    , portfolioActivos :: [PortfolioAsset]
+    } deriving (Show, Generic)
+
+instance FromJSON PortfolioResponse where
+    parseJSON = genericParseJSON defaultOptions
 
 -- Tipo de dato para almacenar el token
 newtype AuthResponse = AuthResponse { accessToken :: String }
@@ -110,22 +160,22 @@ data Ticket = Ticket
     } deriving (Show, Read, Eq)
 
 -- Tipo para la orden de compra
-data ComprarRequest = ComprarRequest
-    { compraMercado :: String
-    , compraSimbolo :: String
-    , compraCantidad :: Int
-    , compraPrecio :: Double
-    , compraPlazo :: String
-    , compraValidez :: String
-    , compraTipoOrden :: String
+data OrdenRequest = OrdenRequest
+    { ordenMercado :: String
+    , ordenSimbolo :: String
+    , ordenCantidad :: Int
+    , ordenPrecio :: Double
+    , ordenPlazo :: String
+    , ordenValidez :: String
+    , ordenTipoOrden :: String
     } deriving (Show, Generic)
 
-instance ToJSON ComprarRequest where
+instance ToJSON OrdenRequest where
     toJSON = genericToJSON defaultOptions
 
 -- Configuración global
 montoOperacion :: Double
-montoOperacion = 10000.0  -- Valor inicial, ajustar según necesidad
+montoOperacion = 120000.0  -- Valor inicial, ajustar según necesidad
 
 -- Tipo para la cotización del dólar MEP
 newtype DolarMEP = DolarMEP Double

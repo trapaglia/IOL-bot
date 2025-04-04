@@ -9,8 +9,12 @@ module Api
     , getEstadoCuenta
     , updateTicketMarketData
     , enviarOrdenCompra
+    , enviarOrdenVenta
     , getDolarMEP
     , compareMEP
+    , getPortfolio
+    , getCantidadPortfolio
+    , OrdenRequest(..)
     ) where
 
 import System.Environment (lookupEnv)
@@ -27,6 +31,7 @@ import Data.Maybe (isJust)
 import System.IO.Unsafe (unsafePerformIO)
 import Types
 import Utils (getCurrentTimeArgentina)
+import Data.List (find)
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
@@ -216,9 +221,16 @@ updateTicketMarketData config ticket = do
         Nothing -> return Nothing
 
 -- Función para enviar una orden de compra
-enviarOrdenCompra :: ApiConfig -> ComprarRequest -> IO Bool
+enviarOrdenCompra :: ApiConfig -> OrdenRequest -> IO Bool
 enviarOrdenCompra config orden = do
     let url = "https://api.invertironline.com/api/v2/operar/Comprar"
+    response <- callApiWithMethod config "POST" url (Just $ encode orden)
+    return $ isJust response
+
+-- Función para enviar una orden de venta
+enviarOrdenVenta :: ApiConfig -> OrdenRequest -> IO Bool
+enviarOrdenVenta config orden = do
+    let url = "https://api.invertironline.com/api/v2/operar/Vender"
     response <- callApiWithMethod config "POST" url (Just $ encode orden)
     return $ isJust response
 
@@ -249,4 +261,37 @@ compareMEP config symbol = do
         (Just (DolarMEP symbolMEP), Just (DolarMEP standardMEP)) -> return (symbolMEP, standardMEP)
         (Nothing, Just (DolarMEP standardMEP)) -> return(0.0, standardMEP)
         _ -> return (0.0, 0.0)
-    
+
+-- Función para obtener el portafolio
+getPortfolio :: ApiConfig -> IO (Maybe PortfolioResponse)
+getPortfolio config = do
+    response <- callApi config "https://api.invertironline.com/api/v2/portafolio/argentina"
+    case response of
+        Nothing -> do
+            putStrLn "Error al obtener el portafolio"
+            return Nothing
+        Just body -> do
+            let portfolio = decode body :: Maybe PortfolioResponse
+            case portfolio of
+                Just p -> do
+                    putStrLn "Portafolio obtenido correctamente"
+                    return $ Just p
+                Nothing -> do
+                    putStrLn "Error al decodificar el portafolio"
+                    return Nothing
+
+-- Función para obtener la cantidad de un símbolo específico del portafolio
+getCantidadPortfolio :: ApiConfig -> String -> IO (Maybe Double)
+getCantidadPortfolio config symbol = do
+    maybePortfolio <- getPortfolio config
+    case maybePortfolio of
+        Nothing -> return Nothing
+        Just portfolio -> do
+            let activo = find (\asset -> tituloSimbolo (assetTitulo asset) == symbol) (portfolioActivos portfolio)
+            case activo of
+                Nothing -> do
+                    putStrLn $ "No se encontró el símbolo " ++ symbol ++ " en el portafolio"
+                    return Nothing
+                Just asset -> do
+                    putStrLn $ "Cantidad de " ++ symbol ++ ": " ++ show (assetCantidad asset)
+                    return $ Just (assetCantidad asset)
