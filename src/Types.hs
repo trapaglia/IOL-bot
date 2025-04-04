@@ -6,6 +6,8 @@ module Types
     , ApiConfig(..)
     , CotizacionDetalle(..)
     , Punta(..)
+    , PuntaInstrumento(..)
+    , Instrumento(..)
     , EstadoCuenta(..)
     , Cuenta(..)
     , SaldoDetalle(..)
@@ -19,6 +21,7 @@ module Types
     , AssetParking(..)
     , DolarMEP(..)
     , Operacion(..)
+    , CotizacionesResponse(..)
     , montoOperacion
     ) where
 
@@ -119,12 +122,85 @@ data Punta = Punta
 instance FromJSON Punta where
     parseJSON = genericParseJSON defaultOptions
 
+data PuntaInstrumento = PuntaInstrumento
+    { puntaInstCantidadCompra :: Int
+    , puntaInstPrecioCompra :: Double
+    , puntaInstPrecioVenta :: Double
+    , puntaInstCantidadVenta :: Int
+    } deriving (Show, Generic)
+
+instance FromJSON PuntaInstrumento where
+    parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 8 s of  -- quita el prefijo "puntaInst"
+            "CantidadCompra" -> "cantidadCompra"
+            "PrecioCompra" -> "precioCompra"
+            "PrecioVenta" -> "precioVenta"
+            "CantidadVenta" -> "cantidadVenta"
+            x -> x
+        }
+
+data Instrumento = Instrumento
+    { instSimbolo :: String
+    , instPuntas :: PuntaInstrumento
+    , instUltimoPrecio :: Double
+    , instVariacionPorcentual :: Double
+    , instApertura :: Double
+    , instMaximo :: Double
+    , instMinimo :: Double
+    , instUltimoCierre :: Double
+    , instVolumen :: Int
+    , instCantidadOperaciones :: Int
+    , instFecha :: String
+    , instTipoOpcion :: Maybe String
+    , instPrecioEjercicio :: Maybe Double
+    , instFechaVencimiento :: Maybe String
+    , instMercado :: String
+    , instMoneda :: String
+    , instDescripcion :: String
+    , instPlazo :: String
+    , instLaminaMinima :: Int
+    , instLote :: Int
+    } deriving (Show, Generic)
+
+instance FromJSON Instrumento where
+    parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 4 s of  -- quita el prefijo "inst"
+            "Simbolo" -> "simbolo"
+            "Puntas" -> "puntas"
+            "UltimoPrecio" -> "ultimoPrecio"
+            "VariacionPorcentual" -> "variacionPorcentual"
+            "Apertura" -> "apertura"
+            "Maximo" -> "maximo"
+            "Minimo" -> "minimo"
+            "UltimoCierre" -> "ultimoCierre"
+            "Volumen" -> "volumen"
+            "CantidadOperaciones" -> "cantidadOperaciones"
+            "Fecha" -> "fecha"
+            "TipoOpcion" -> "tipoOpcion"
+            "PrecioEjercicio" -> "precioEjercicio"
+            "FechaVencimiento" -> "fechaVencimiento"
+            "Mercado" -> "mercado"
+            "Moneda" -> "moneda"
+            "Descripcion" -> "descripcion"
+            "Plazo" -> "plazo"
+            "LaminaMinima" -> "laminaMinima"
+            "Lote" -> "lote"
+            x -> x
+        }
+
 data CotizacionDetalle = CotizacionDetalle
     { ultimoPrecio :: Double
     , puntas :: [Punta]
     } deriving (Show, Generic)
 
 instance FromJSON CotizacionDetalle where
+    parseJSON = genericParseJSON defaultOptions
+
+newtype CotizacionesResponse = CotizacionesResponse
+    { titulos :: [Instrumento]
+    } deriving (Show, Generic)
+
+instance FromJSON CotizacionesResponse where
     parseJSON = genericParseJSON defaultOptions
 
 -- Configuración para las llamadas a la API

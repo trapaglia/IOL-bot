@@ -48,8 +48,8 @@ mainLoop conn config stopMVar = do
     case stopped of
         Just _ -> return ()
         Nothing -> do
-            -- Esperar 30 segundos
-            threadDelay (30 * 1000000)  -- threadDelay toma microsegundos
+            -- Esperar 60 segundos
+            threadDelay (60 * 1000000)  -- threadDelay toma microsegundos
             mainLoop conn config stopMVar
 
 -- Función para ejecutar el bucle principal con manejo de interrupciones

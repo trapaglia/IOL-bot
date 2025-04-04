@@ -14,6 +14,7 @@ module Api
     , compareMEP
     , getPortfolio
     , getCantidadPortfolio
+    , getAllCotizaciones
     , OrdenRequest(..)
     ) where
 
@@ -294,3 +295,22 @@ getCantidadPortfolio config symbol = do
                 Just asset -> do
                     putStrLn $ "Cantidad de " ++ symbol ++ ": " ++ show (assetCantidad asset)
                     return $ Just (round $ assetCantidad asset)
+
+-- Función para obtener todas las cotizaciones
+getAllCotizaciones :: ApiConfig -> IO (Maybe CotizacionesResponse)
+getAllCotizaciones config = do
+    let url = "https://api.invertironline.com/api/v2/Cotizaciones/Acciones/argentina/Todos?cotizacionInstrumentoModel.instrumento=acciones&cotizacionInstrumentoModel.pais=argentina"
+    response <- callApi config url
+    case response of
+        Nothing -> do
+            putStrLn "Error al obtener las cotizaciones"
+            return Nothing
+        Just body -> do
+            let cotizaciones = decode body :: Maybe CotizacionesResponse
+            case cotizaciones of
+                Just cot -> do
+                    putStrLn $ "Se obtuvieron " ++ show (length $ titulos cot) ++ " cotizaciones"
+                    return $ Just cot
+                Nothing -> do
+                    putStrLn "Error al decodificar las cotizaciones"
+                    return Nothing

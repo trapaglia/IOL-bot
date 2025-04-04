@@ -11,6 +11,8 @@ Un bot de trading automatizado para InvertirOnline (IOL) escrito en Haskell.
 - Seguimiento del dólar MEP para cada símbolo
 - Base de datos SQLite para persistencia de datos
 - Comparación del dólar MEP de cada símbolo con AL30 como referencia
+- Registro de órdenes ejecutadas en archivo de log
+- Obtención eficiente de cotizaciones usando la API de cotizaciones masivas
 
 ## Configuración
 
@@ -47,6 +49,11 @@ El bot implementa una estrategia basada en:
    - SecondSell: Segunda venta realizada
    - StopLoss: Stop loss alcanzado
    - TakeProfit: Take profit alcanzado
+
+3. Logging y Monitoreo:
+   - Todas las órdenes ejecutadas se registran en `ordenes_ejecutadas.log`
+   - El sistema utiliza la API de cotizaciones masivas para obtener datos de manera eficiente
+   - Se monitorean las puntas de compra/venta, volumen y cantidad de operaciones
 
 ## Base de Datos
 
@@ -91,6 +98,8 @@ cabal run
   - `Utils.hs`: Funciones de utilidad
 - `app/`
   - `Main.hs`: Punto de entrada y configuración inicial
+- `logs/`
+  - `ordenes_ejecutadas.log`: Registro de todas las órdenes ejecutadas
 
 ## Seguridad
 
