@@ -18,22 +18,11 @@ import Data.Time (addUTCTime)
 -- Funciones placeholder para operaciones de trading
 placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
 placeBuyOrder _ config ticket = do
-    let cantidadCompra = floor (montoOperacion / puntaCompra ticket)
-    currentTime <- getCurrentTimeArgentina
-    let orden = OrdenRequest
-            { ordenMercado = "bCBA"
-            , ordenSimbolo = ticketName ticket
-            , ordenCantidad = Just cantidadCompra
-            , ordenPrecio = puntaCompra ticket
-            , ordenPlazo = "t0"
-            , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
-            , ordenTipoOrden = Just "precioLimite"
-            , ordenMonto = Nothing
-            , ordenIdFuente = Nothing
-            }
-    
+    let cantidadCompra = montoOperacion / puntaCompra ticket
+    orden <- createOrdenRequest ticket cantidadCompra
     putStrLn $ "  [ + ! + ] Comprando " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
     rsp <- enviarOrdenCompra config orden
+    currentTime <- getCurrentTimeArgentina
     case rsp of
         True -> do
             putStrLn "  [ + ! + ] Compra exitosa"
@@ -45,22 +34,28 @@ placeBuyOrder _ config ticket = do
         False -> putStrLn "  [ - ! - ] Compra fallida"
     return rsp
 
-placeSellOrder :: Connection -> ApiConfig -> Ticket -> Int -> IO Bool
-placeSellOrder _ config ticket cantidad = do
+createOrdenRequest :: Ticket -> Double -> IO OrdenRequest
+createOrdenRequest ticket cantidad = do
     currentTime <- getCurrentTimeArgentina
-    let cantidadVenta = floor (fromIntegral cantidad * (0.82 :: Double)) :: Int
-    let orden = OrdenRequest
-            { ordenMercado = "bCBA"
-            , ordenSimbolo = ticketName ticket
-            , ordenCantidad = Just cantidadVenta
-            , ordenPrecio = puntaVenta ticket
-            , ordenPlazo = "t0"
-            , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
-            , ordenTipoOrden = Just "precioLimite"
-            , ordenMonto = Nothing
-            , ordenIdFuente = Nothing
-            }
-            
+    let amount = floor cantidad :: Int
+    let opAmount = if amount > 0 then amount else 1
+    return OrdenRequest
+        { ordenMercado = "bCBA"
+        , ordenSimbolo = ticketName ticket
+        , ordenCantidad = Just opAmount
+        , ordenPrecio = puntaVenta ticket
+        , ordenPlazo = "t0"
+        , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
+        , ordenTipoOrden = Just "precioLimite"
+        , ordenMonto = Nothing
+        , ordenIdFuente = Nothing
+        }
+
+
+placeSellOrder :: Connection -> ApiConfig -> Ticket -> Double -> IO Bool
+placeSellOrder _ config ticket cantidad = do
+    let cantidadVenta = fromIntegral cantidad * (0.82 :: Double)
+    orden <- createOrdenRequest ticket cantidadVenta
     putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
     enviarOrdenVenta config orden
 
@@ -111,9 +106,8 @@ processTicket conn config ticket = do
                                 putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                                 return ()
                             Just cantidad -> do
-                                let sellAmount = floor (fromIntegral cantidad * (0.45 :: Double)) :: Int
-                                let opAmount = if sellAmount > 0 then sellAmount else 1
-                                success <- placeSellOrder conn config ticket opAmount
+                                let sellAmount = fromIntegral cantidad * (0.45 :: Double)
+                                success <- placeSellOrder conn config ticket sellAmount
                                 when success $ do
                                     let updatedTicket = ticket { estado = FirstSell }
                                     updateTicket conn updatedTicket
