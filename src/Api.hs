@@ -18,7 +18,7 @@ module Api
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (decode, encode, eitherDecode)
+import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Network.HTTP.Client
@@ -30,7 +30,6 @@ import Data.Maybe (isJust)
 import System.IO.Unsafe (unsafePerformIO)
 import Types
 import Utils (getCurrentTimeArgentina)
-import Data.List (find)
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
@@ -186,18 +185,18 @@ getEstadoCuenta config = do
             let estadoCuenta = decode body :: Maybe EstadoCuenta
             case estadoCuenta of
                 Just ec -> do
-                    putStrLn "Estado de cuenta:"
-                    mapM_ (\cuenta -> do
-                        putStrLn $ "\nCuenta: " ++ numero cuenta
-                        putStrLn $ "Tipo: " ++ tipo cuenta
-                        putStrLn $ "Moneda: " ++ moneda cuenta
-                        case saldos cuenta of
-                            (s:_) -> do
-                                putStrLn $ "Saldo: " ++ show (saldo s)
-                                putStrLn $ "Comprometido: " ++ show (comprometido s)
-                                putStrLn $ "Disponible: " ++ show (disponible s)
-                            [] -> putStrLn "No hay información de saldos"
-                        ) (cuentas ec)
+                    -- putStrLn "Estado de cuenta:"
+                    -- mapM_ (\cuenta -> do
+                    --     putStrLn $ "\nCuenta: " ++ numero cuenta
+                    --     putStrLn $ "Tipo: " ++ tipo cuenta
+                    --     putStrLn $ "Moneda: " ++ moneda cuenta
+                    --     case saldos cuenta of
+                    --         (s:_) -> do
+                    --             putStrLn $ "Saldo: " ++ show (saldo s)
+                    --             putStrLn $ "Comprometido: " ++ show (comprometido s)
+                    --             putStrLn $ "Disponible: " ++ show (disponible s)
+                    --         [] -> putStrLn "No hay información de saldos"
+                    --     ) (cuentas ec)
                     return $ Just ec
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta"

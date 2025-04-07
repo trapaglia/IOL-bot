@@ -6,7 +6,7 @@ module Trading
     , placeSellOrder
     ) where
 
-import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), montoOperacion)
+import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), montoOperacion, DolarMEP(..))
 import Database.SQLite.Simple (Connection)
 import Database (updateTicket)
 import Control.Monad (when)
@@ -15,6 +15,8 @@ import Utils (getCurrentTimeArgentina)
 import Helper (getCantidadPortfolio, compareMEP)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Time (addUTCTime)
+import Data.Maybe (fromMaybe)
+
 
 createOrdenRequest :: Ticket -> Double -> IO OrdenRequest
 createOrdenRequest ticket cantidad = do
@@ -58,8 +60,10 @@ placeBuyOrder _ config ticket = do
             putStrLn "  [ + ! + ] Compra exitosa"
             let logFileName = "ordenes_ejecutadas.log"
             dolarMEP <- getDolarMEP config (ticketName ticket)
-            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / fromMaybe 1 dolarMEP
-            let ticketPriceDolares = puntaCompra ticket / fromMaybe 1 dolarMEP
+            let dolarMEPValue = case fromMaybe (DolarMEP 1.0) dolarMEP of
+                                DolarMEP value -> value
+            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / dolarMEPValue
+            let ticketPriceDolares = puntaCompra ticket / dolarMEPValue
             let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
                            " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                            " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
@@ -84,8 +88,10 @@ placeSellOrder _ config ticket cantidad = do
             putStrLn "  [ + ! + ] Venta exitosa"
             let logFileName = "ordenes_ejecutadas.log"
             dolarMEP <- getDolarMEP config (ticketName ticket)
-            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / fromMaybe 1 dolarMEP
-            let ticketPriceDolares = puntaVenta ticket / fromMaybe 1 dolarMEP
+            let dolarMEPValue = case fromMaybe (DolarMEP 1.0) dolarMEP of
+                                DolarMEP value -> value
+            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / dolarMEPValue
+            let ticketPriceDolares = puntaVenta ticket / dolarMEPValue
             let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++
                            " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                            " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++

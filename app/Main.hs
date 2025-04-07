@@ -9,12 +9,13 @@ import Types ( ApiConfig(..), Precios(..), Ticket(..)
             , Instrumento(..), PuntaInstrumento(..)
             , instSimbolo, instPuntas, instVolumen, instCantidadOperaciones
             , precioCompra, precioVenta
+            , EstadoCuenta(..), Cuenta(..), SaldoDetalle(..)
             )
-import Api (getCredentials, getAllCotizaciones)
+import Api (getCredentials, getAllCotizaciones, getEstadoCuenta)
 import Database
 import Trading (processTicket)
 import Database.SQLite.Simple (Connection, close)
-import Control.Monad (forM_)
+import Control.Monad (forM_, forever)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
@@ -69,6 +70,27 @@ mainLoop conn config stopMVar = do
         (updateAllTickets conn config)
         (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
     
+    putStrLn "\nEstado de cuenta:"
+    maybeEstadoCuenta <- getEstadoCuenta config
+    case maybeEstadoCuenta of
+        Just ec -> do
+            let cuentaPesos = head (cuentas ec)
+            let cuentaDolares = (cuentas ec) !! 1
+            putStrLn "Cuenta Pesos"
+            case saldos cuentaPesos of
+                (s:_) -> do
+                    putStrLn $ "\nSaldo: " ++ show (saldo s)
+                    putStrLn $ "Comprometido: " ++ show (comprometido s)
+                    putStrLn $ "Disponible: " ++ show (disponible s)
+                [] -> putStrLn "No hay información de saldos"
+            putStrLn "Cuenta Dolares"
+            case saldos cuentaDolares of
+                (s:_) -> do
+                    putStrLn $ "\nSaldo: " ++ show (saldo s)
+                    putStrLn $ "Comprometido: " ++ show (comprometido s)
+                    putStrLn $ "Disponible: " ++ show (disponible s)
+                [] -> putStrLn "No hay información de saldos"
+        Nothing -> putStrLn "No se pudo obtener el estado de cuenta"
     -- Verificar si debemos detener el programa
     stopped <- tryTakeMVar stopMVar
     case stopped of
@@ -76,7 +98,7 @@ mainLoop conn config stopMVar = do
         Nothing -> do
             -- Esperar 60 segundos
             threadDelay (60 * 1000000)  -- threadDelay toma microsegundos
-            mainLoop conn config stopMVar
+            -- mainLoop conn config stopMVar
 
 -- Función para ejecutar el bucle principal con manejo de interrupciones
 runMainLoop :: Connection -> ApiConfig -> IO ()
@@ -94,7 +116,7 @@ runMainLoop conn config = do
     
     -- Ejecutar el bucle principal con manejo de excepciones
     catch 
-        (mainLoop conn config stopMVar)
+        (forever $ mainLoop conn config stopMVar)
         (\e -> do
             case e of
                 -- Si es una interrupción por Ctrl+C

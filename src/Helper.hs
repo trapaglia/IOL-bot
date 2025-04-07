@@ -1,4 +1,7 @@
-import Api (getDolarMEP, ApiConfig, DolarMEP, getPortfolio)
+module Helper (compareMEP, getCantidadPortfolio) where
+import Api (getDolarMEP, getPortfolio)
+import Types (ApiConfig, DolarMEP(..), PortfolioResponse(..), PortfolioAsset(..), AssetTitle(..))
+import Data.List (find)
 
 -- Función para comparar el dólar MEP con el AL30
 compareMEP :: ApiConfig -> String -> IO (Double, Double)
