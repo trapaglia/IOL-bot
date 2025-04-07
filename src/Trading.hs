@@ -37,71 +37,88 @@ createOrdenRequest ticket cantidad = do
 
 placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
 placeBuyOrder _ config ticket = do
-    -- (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-    -- if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
-    --     then do
-    --         let operacionPesos = True
-    --     else do
-    --         let operacionPesos = False
-    --         let ticketName ticket = ticketName ticket ++ "D"
-    --         let symbolDolar = getCotizacion config (ticketName ticket)
-    --         let priceDolar = (puntaCompra ticket / standardDolarMEP) + 1.0
-    --         putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
-    --         putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
+    (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
+    let logFileName = "ordenes_ejecutadas.log"
+    if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
+    then do
+        -- let operacionPesos = True
+        --         let ticketName ticket = ticketName ticket ++ "D"
+        --         let symbolDolar = getCotizacion config (ticketName ticket)
+        --         let priceDolar = (puntaCompra ticket / standardDolarMEP) + 1.0
+        --         putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+        --         putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
 
-    let cantidadCompra = montoOperacion / puntaCompra ticket
-    orden <- createOrdenRequest ticket cantidadCompra
-    putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
-    putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket)
-    rsp <- enviarOrdenCompra config orden
-    currentTime <- getCurrentTimeArgentina
-    if rsp
-        then do
+        let cantidadCompra = montoOperacion / puntaCompra ticket
+        orden <- createOrdenRequest ticket cantidadCompra
+        putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
+        putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket)
+        rsp <- enviarOrdenCompra config orden
+        currentTime <- getCurrentTimeArgentina
+        if rsp then do
             putStrLn "  [ + ! + ] Compra exitosa"
-            let logFileName = "ordenes_ejecutadas.log"
             dolarMEP <- getDolarMEP config (ticketName ticket)
             let dolarMEPValue = case fromMaybe (DolarMEP 1.0) dolarMEP of
                                 DolarMEP value -> value
             let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / dolarMEPValue
             let ticketPriceDolares = puntaCompra ticket / dolarMEPValue
             let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
-                           " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
-                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
-                           " Total: " ++ show opAmountDolares ++ " dolares\n" ++
-                           " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
+                        " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
+                        " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
+                        " Total: " ++ show opAmountDolares ++ " dolares\n" ++
+                        " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
             appendFile logFileName ordenLog
             return True
         else do
             putStrLn "  [ - ! - ] Compra fallida"
             return False
+    else do
+        -- let operacionPesos = False
+        let ordenLog = "  [ + E] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ 
+                       show (symbolDolarMEP/standardDolarMEP) ++ ")\n" ++
+                       "  [ + E] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
+        appendFile logFileName ordenLog
+        putStrLn ordenLog
+        return False
+
 
 placeSellOrder :: Connection -> ApiConfig -> Ticket -> Double -> IO Bool
 placeSellOrder _ config ticket cantidad = do
-    let cantidadVenta = cantidad * (0.82 :: Double)
-    orden <- createOrdenRequest ticket cantidadVenta
-    putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
-    putStrLn $ " [I] Total recibido " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket)
-    rsp <- enviarOrdenVenta config orden
-    currentTime <- getCurrentTimeArgentina
-    if rsp
-        then do
+    (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
+    let logFileName = "ordenes_ejecutadas.log"
+    if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
+    then do
+        -- let operacionPesos = True
+        let cantidadVenta = cantidad * (0.82 :: Double)
+        orden <- createOrdenRequest ticket cantidadVenta
+        putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
+        putStrLn $ " [I] Total recibido " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket)
+        rsp <- enviarOrdenVenta config orden
+        currentTime <- getCurrentTimeArgentina
+        if rsp then do
             putStrLn "  [ + ! + ] Venta exitosa"
-            let logFileName = "ordenes_ejecutadas.log"
             dolarMEP <- getDolarMEP config (ticketName ticket)
             let dolarMEPValue = case fromMaybe (DolarMEP 1.0) dolarMEP of
                                 DolarMEP value -> value
             let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / dolarMEPValue
             let ticketPriceDolares = puntaVenta ticket / dolarMEPValue
             let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++
-                           " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
-                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
-                           " Total: " ++ show opAmountDolares ++ " dolares\n" ++
-                           " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
+                        " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
+                        " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
+                        " Total: " ++ show opAmountDolares ++ " dolares\n" ++
+                        " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
             appendFile logFileName ordenLog
             return True
         else do
             putStrLn "  [ - ! - ] Venta fallida"
             return False
+    else do
+        -- let operacionPesos = False
+        let ordenLog = "  [ + E] Ticket " ++ ticketName ticket ++ " no cumple con la condición de venta (Relacion Dolar MEP = " ++ 
+                        show (symbolDolarMEP/standardDolarMEP) ++ ")\n" ++
+                        "  [ + E] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
+        appendFile logFileName ordenLog
+        putStrLn ordenLog
+        return False
 
 -- Función para procesar un ticket según su estado y precios actuales
 processTicket :: Connection -> ApiConfig -> Ticket -> IO ()
@@ -110,117 +127,79 @@ processTicket conn config ticket = do
     
     case estado ticket of
         Waiting -> when (puntaVenta ticket <= compra1 targetPrices) $ do
-            (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-            if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
-                then do
-                    success <- placeBuyOrder conn config ticket
-                    when success $ do
-                        let updatedTicket = ticket { estado = FirstBuy }
-                        updateTicket conn updatedTicket
-                        putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a FirstBuy"
-                else do
-                    putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
-                    putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
-                    return ()
+            success <- placeBuyOrder conn config ticket
+            when success $ do
+                let updatedTicket = ticket { estado = FirstBuy }
+                updateTicket conn updatedTicket
+                putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a FirstBuy"
 
         FirstBuy -> do
             -- Check for second buy opportunity
             when (puntaVenta ticket <= compra2 targetPrices) $ do
-                (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
-                    then do
-                        success <- placeBuyOrder conn config ticket
-                        when success $ do
-                            let updatedTicket = ticket { estado = SecondBuy }
-                            updateTicket conn updatedTicket
-                            putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondBuy"
-                    else do
-                        putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
-                        putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
-                        return ()
+                success <- placeBuyOrder conn config ticket
+                when success $ do
+                    let updatedTicket = ticket { estado = SecondBuy }
+                    updateTicket conn updatedTicket
+                    putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondBuy"
             
             -- Check for first sell opportunity
             when (puntaCompra ticket >= venta1 targetPrices) $ do
-                (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
-                    then do
-                        maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
-                        case maybeCantidad of
-                            Nothing -> do
-                                putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
-                                return ()
-                            Just cantidad -> do
-                                let sellAmount = fromIntegral cantidad * (0.45 :: Double)
-                                success <- placeSellOrder conn config ticket sellAmount
-                                when success $ do
-                                    let updatedTicket = ticket { estado = FirstSell }
-                                    updateTicket conn updatedTicket
-                                    putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a FirstSell"
-                    else do
-                        putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de venta (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+                maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
+                case maybeCantidad of
+                    Nothing -> do
+                        putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                         return ()
+                    Just cantidad -> do
+                        let sellAmount = fromIntegral cantidad * (0.45 :: Double)
+                        success <- placeSellOrder conn config ticket sellAmount
+                        when success $ do
+                            let updatedTicket = ticket { estado = FirstSell }
+                            updateTicket conn updatedTicket
+                            putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a FirstSell"
 
         SecondBuy -> 
             when (puntaCompra ticket >= venta1 targetPrices) $ do
-                (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
-                    then do
-                        maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
-                        case maybeCantidad of
-                            Nothing -> do
-                                putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
-                                return ()
-                            Just cantidad -> do
-                                let sellAmount = fromIntegral cantidad * (0.82 :: Double)
-                                success <- placeSellOrder conn config ticket sellAmount
-                                when success $ do
-                                    let updatedTicket = ticket { estado = SecondSell }
-                                    updateTicket conn updatedTicket
-                                    putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondSell"
-                    else do
-                        putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de venta (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+                maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
+                case maybeCantidad of
+                    Nothing -> do
+                        putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                         return ()
+                    Just cantidad -> do
+                            let sellAmount = fromIntegral cantidad * (0.82 :: Double)
+                            success <- placeSellOrder conn config ticket sellAmount
+                            when success $ do
+                                let updatedTicket = ticket { estado = SecondSell }
+                                updateTicket conn updatedTicket
+                                putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondSell"
 
         FirstSell -> 
             when (puntaCompra ticket >= venta2 targetPrices) $ do
-                (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
-                    then do
-                        maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
-                        case maybeCantidad of
-                            Nothing -> do
-                                putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
-                                return ()
-                            Just cantidad -> do
-                                let sellAmount = fromIntegral cantidad * (0.82 :: Double)
-                                success <- placeSellOrder conn config ticket sellAmount
-                                when success $ do
-                                    let updatedTicket = ticket { estado = SecondSell }
-                                    updateTicket conn updatedTicket
-                                    putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondSell"
-                    else do
-                        putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de venta (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+                maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
+                case maybeCantidad of
+                    Nothing -> do
+                        putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                         return ()
+                    Just cantidad -> do
+                        let sellAmount = fromIntegral cantidad * (0.82 :: Double)
+                        success <- placeSellOrder conn config ticket sellAmount
+                        when success $ do
+                            let updatedTicket = ticket { estado = SecondSell }
+                            updateTicket conn updatedTicket
+                            putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondSell"
 
         SecondSell -> 
             when (puntaCompra ticket >= takeProfit targetPrices) $ do
-                (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-                if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
-                    then do
-                        maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
-                        case maybeCantidad of
-                            Nothing -> do
-                                putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
-                                return ()
-                            Just cantidad -> do
-                                let sellAmount = fromIntegral cantidad
-                                success <- placeSellOrder conn config ticket sellAmount
-                                when success $ do
-                                    let updatedTicket = ticket { estado = SecondSell }
-                                    updateTicket conn updatedTicket
-                                    putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondSell"
-                    else do
-                        putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de venta (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+                maybeCantidad <- getCantidadPortfolio config (ticketName ticket)
+                case maybeCantidad of
+                    Nothing -> do
+                        putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                         return ()
+                    Just cantidad -> do
+                        let sellAmount = fromIntegral cantidad
+                        success <- placeSellOrder conn config ticket sellAmount
+                        when success $ do
+                            let updatedTicket = ticket { estado = SecondSell }
+                            updateTicket conn updatedTicket
+                            putStrLn $ "  [I] Ticket " ++ ticketName ticket ++ " actualizado a SecondSell"
 
         _ -> return () -- Para otros estados no hacemos nada por ahora

@@ -76,17 +76,17 @@ mainLoop conn config stopMVar = do
         Just ec -> do
             let cuentaPesos = head (cuentas ec)
             let cuentaDolares = (cuentas ec) !! 1
-            putStrLn "Cuenta Pesos"
+            putStrLn "\nCuenta Pesos"
             case saldos cuentaPesos of
                 (s:_) -> do
-                    putStrLn $ "\nSaldo: " ++ show (saldo s)
+                    putStrLn $ "Saldo: " ++ show (saldo s)
                     putStrLn $ "Comprometido: " ++ show (comprometido s)
                     putStrLn $ "Disponible: " ++ show (disponible s)
                 [] -> putStrLn "No hay información de saldos"
-            putStrLn "Cuenta Dolares"
+            putStrLn "\nCuenta Dolares"
             case saldos cuentaDolares of
                 (s:_) -> do
-                    putStrLn $ "\nSaldo: " ++ show (saldo s)
+                    putStrLn $ "Saldo: " ++ show (saldo s)
                     putStrLn $ "Comprometido: " ++ show (comprometido s)
                     putStrLn $ "Disponible: " ++ show (disponible s)
                 [] -> putStrLn "No hay información de saldos"
