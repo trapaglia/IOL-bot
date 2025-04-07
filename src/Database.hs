@@ -21,6 +21,7 @@ module Database
     , DBToken(..)
     , DBTicket(..)
     , insertOperacion
+    , deleteTable
     ) where
 
 import Database.SQLite.Simple
@@ -251,13 +252,15 @@ insertTenencia conn symbol cantidad precio = do
     execute conn "INSERT OR REPLACE INTO tenencias (symbol, cantidad, precio_compra, timestamp) VALUES (?, ?, ?, datetime(?))"
         (DBTenencia symbol cantidad precio now)
 
+deleteTable :: Connection -> String -> IO ()
+deleteTable conn tableName = 
+    execute_ conn $ Query $ "DELETE FROM " <> T.pack tableName
+
 insertEstadoCuenta :: Connection -> Cuenta -> IO ()
 insertEstadoCuenta conn cuenta = do
     now <- getCurrentTimeArgentina
     case saldos cuenta of
         (s:_) -> do
-            -- Borrar todos los registros existentes
-            execute_ conn "DELETE FROM estado_cuenta"
             -- Insertar el nuevo estado
             execute conn "INSERT INTO estado_cuenta (numero_cuenta, tipo_cuenta, moneda, saldo, comprometido, disponible, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)"
                 (DBEstadoCuenta

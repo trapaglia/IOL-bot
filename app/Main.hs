@@ -14,8 +14,9 @@ import Types ( ApiConfig(..), Precios(..), Ticket(..)
 import Api (getCredentials, getAllCotizaciones, getEstadoCuenta)
 import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTickets, getLastEstadoCuenta, DBEstadoCuenta(..))
 import Trading (processTicket)
+import Database (deleteTable)
 import Database.SQLite.Simple (Connection, close)
-import Control.Monad (forM_, forever, when)
+import Control.Monad (forM_, forever)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
@@ -85,6 +86,7 @@ mainLoop conn config stopMVar iterationRef = do
                 let cuentaPesos = head (cuentas ec)
                 let cuentaDolares = (cuentas ec) !! 1
                 
+                deleteTable conn "estado_cuenta"
                 -- Guardar en la base de datos
                 insertEstadoCuenta conn cuentaPesos
                 insertEstadoCuenta conn cuentaDolares
@@ -147,7 +149,7 @@ runMainLoop :: Connection -> ApiConfig -> IO ()
 runMainLoop conn config = do
     putStrLn "\nIniciando bucle principal... (Presiona Ctrl+C para detener)"
     stopMVar <- newEmptyMVar
-    iterationRef <- newIORef 1  -- Crear referencia para la iteración
+    iterationRef <- newIORef 0  -- Crear referencia para la iteración
     
     -- Configurar manejador de Ctrl+C
     let cleanup = do
