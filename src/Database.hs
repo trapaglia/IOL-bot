@@ -29,6 +29,7 @@ import Database.SQLite.Simple.ToRow()
 import qualified Data.Text as T
 import Data.Time
 import Types
+import Utils (getCurrentTimeArgentina)
 
 -- Tipos de datos para la base de datos
 data DBTenencia = DBTenencia
@@ -246,23 +247,27 @@ dbTicketToTicket dbTicket = Ticket
 -- Funciones de inserción
 insertTenencia :: Connection -> T.Text -> Int -> Double -> IO ()
 insertTenencia conn symbol cantidad precio = do
-    now <- getCurrentTime
+    now <- getCurrentTimeArgentina
     execute conn "INSERT OR REPLACE INTO tenencias (symbol, cantidad, precio_compra, timestamp) VALUES (?, ?, ?, datetime(?))"
         (DBTenencia symbol cantidad precio now)
 
 insertEstadoCuenta :: Connection -> Cuenta -> IO ()
 insertEstadoCuenta conn cuenta = do
-    now <- getCurrentTime
+    now <- getCurrentTimeArgentina
     case saldos cuenta of
-        (s:_) -> execute conn "INSERT OR REPLACE INTO estado_cuenta (numero_cuenta, tipo_cuenta, moneda, saldo, comprometido, disponible, timestamp) VALUES (?, ?, ?, ?, ?, ?, datetime(?))"
-                    (DBEstadoCuenta 
-                        (T.pack $ numero cuenta)
-                        (T.pack $ tipo cuenta)
-                        (T.pack $ moneda cuenta)
-                        (saldo s)
-                        (comprometido s)
-                        (disponible s)
-                        now)
+        (s:_) -> do
+            -- Borrar todos los registros existentes
+            execute_ conn "DELETE FROM estado_cuenta"
+            -- Insertar el nuevo estado
+            execute conn "INSERT INTO estado_cuenta (numero_cuenta, tipo_cuenta, moneda, saldo, comprometido, disponible, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                (DBEstadoCuenta
+                    (T.pack $ numero cuenta)
+                    (T.pack $ tipo cuenta)
+                    (T.pack $ moneda cuenta)
+                    (saldo s)
+                    (comprometido s)
+                    (disponible s)
+                    now)
         [] -> return ()
 
 insertOperacion :: Connection -> Operacion -> IO ()
@@ -280,7 +285,7 @@ insertOperacion conn operacion =
 
 insertToken :: Connection -> String -> IO ()
 insertToken conn token = do
-    now <- getCurrentTime
+    now <- getCurrentTimeArgentina
     execute conn "INSERT OR REPLACE INTO tokens (token, timestamp) VALUES (?, datetime(?))"
         (DBToken (T.pack token) now)
 
