@@ -1,11 +1,10 @@
-[ ] agregar total gastado no solo cantidad
-[ ] ver como agregar un precio en dolares
-[ ] comparar t0 y t1
+[x] agregar total gastado no solo cantidad
+[x] ver como agregar un precio en dolares - parcialmente suspendido, por ahora ingresar a mano
 [ ] entrar meli y mstr
 [ ] agregar estado cuenta al print
 [ ] guardar tenencias
 
 [ ] obtener todos los tickets y actualizar los q me interesan
 [ ] flags
-
-
+[ ] comparar t0 y t1
+[ ] si falla por valor dolar MEP comprar en dolares

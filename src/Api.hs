@@ -11,9 +11,7 @@ module Api
     , enviarOrdenCompra
     , enviarOrdenVenta
     , getDolarMEP
-    , compareMEP
     , getPortfolio
-    , getCantidadPortfolio
     , getAllCotizaciones
     , OrdenRequest(..)
     ) where
@@ -86,7 +84,7 @@ authenticate user pass = do
                         mToken = extractToken body
                     case mToken of
                         Just token -> do
-                            putStrLn $ "\nToken obtenido: " ++ token
+                            -- putStrLn $ "\nToken obtenido: " ++ token
                             writeIORef globalToken (Just token)
                             return $ Just token
                         Nothing -> do
@@ -259,16 +257,6 @@ getDolarMEP config symbol = do
                     putStrLn $ "Error al decodificar la respuesta del dólar MEP simbolo " ++ symbol
                     return Nothing
 
--- Función para comparar el dólar MEP con el AL30
-compareMEP :: ApiConfig -> String -> IO (Double, Double)
-compareMEP config symbol = do
-    symbolDolarMEP <- getDolarMEP config symbol
-    standardDolarMEP <- getDolarMEP config "AL30"
-    case (symbolDolarMEP, standardDolarMEP) of
-        (Just (DolarMEP symbolMEP), Just (DolarMEP standardMEP)) -> return (symbolMEP, standardMEP)
-        (Nothing, Just (DolarMEP standardMEP)) -> return(0.0, standardMEP)
-        _ -> return (0.0, 0.0)
-
 -- Función para obtener el portafolio
 getPortfolio :: ApiConfig -> IO (Maybe PortfolioResponse)
 getPortfolio config = do
@@ -285,22 +273,6 @@ getPortfolio config = do
                     putStrLn "Error al decodificar el portafolio"
                     return Nothing
 
--- Función para obtener la cantidad de un símbolo específico del portafolio
-getCantidadPortfolio :: ApiConfig -> String -> IO (Maybe Int)
-getCantidadPortfolio config symbol = do
-    maybePortfolio <- getPortfolio config
-    case maybePortfolio of
-        Nothing -> return Nothing
-        Just portfolio -> do
-            let activo = find (\asset -> tituloSimbolo (assetTitulo asset) == symbol) (portfolioActivos portfolio)
-            case activo of
-                Nothing -> do
-                    putStrLn $ "No se encontró el símbolo " ++ symbol ++ " en el portafolio"
-                    return Nothing
-                Just asset -> do
-                    putStrLn $ "Cantidad de " ++ symbol ++ ": " ++ show (assetCantidad asset)
-                    return $ Just (round $ assetCantidad asset)
-
 -- Función para obtener todas las cotizaciones
 getAllCotizaciones :: ApiConfig -> IO (Maybe CotizacionesResponse)
 getAllCotizaciones config = do
@@ -311,7 +283,6 @@ getAllCotizaciones config = do
             putStrLn "Error al obtener las cotizaciones"
             return Nothing
         Just body -> do
-            -- putStrLn $ "Respuesta recibida: " ++ show body
             let cotizaciones = decode body :: Maybe CotizacionesResponse
             case cotizaciones of
                 Just cot -> do
@@ -319,5 +290,4 @@ getAllCotizaciones config = do
                     return $ Just cot
                 Nothing -> do
                     putStrLn "Error al decodificar las cotizaciones"
-                    putStrLn $ "Error de parseo: " ++ show (eitherDecode body :: Either String CotizacionesResponse)
                     return Nothing

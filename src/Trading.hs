@@ -10,8 +10,9 @@ import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), montoOperacion
 import Database.SQLite.Simple (Connection)
 import Database (updateTicket)
 import Control.Monad (when)
-import Api (enviarOrdenCompra, compareMEP, enviarOrdenVenta, OrdenRequest(..), getCantidadPortfolio)
+import Api (getDolarMEP, enviarOrdenCompra, enviarOrdenVenta, OrdenRequest(..))
 import Utils (getCurrentTimeArgentina)
+import Helper (getCantidadPortfolio, compareMEP)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Time (addUTCTime)
 
@@ -34,41 +35,67 @@ createOrdenRequest ticket cantidad = do
 
 placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
 placeBuyOrder _ config ticket = do
+    -- (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
+    -- if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
+    --     then do
+    --         let operacionPesos = True
+    --     else do
+    --         let operacionPesos = False
+    --         let ticketName ticket = ticketName ticket ++ "D"
+    --         let symbolDolar = getCotizacion config (ticketName ticket)
+    --         let priceDolar = (puntaCompra ticket / standardDolarMEP) + 1.0
+    --         putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
+    --         putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
+
     let cantidadCompra = montoOperacion / puntaCompra ticket
     orden <- createOrdenRequest ticket cantidadCompra
     putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
-    putStrLn $ " [I] Total gastado " ++ show (fromIntegral (maybe 0 id (ordenCantidad orden)) * puntaCompra ticket)
+    putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket)
     rsp <- enviarOrdenCompra config orden
     currentTime <- getCurrentTimeArgentina
-    case rsp of
-        True -> do
+    if rsp
+        then do
             putStrLn "  [ + ! + ] Compra exitosa"
             let logFileName = "ordenes_ejecutadas.log"
-            let ordenLog = "Compra de " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
+            dolarMEP <- getDolarMEP config (ticketName ticket)
+            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / fromMaybe 1 dolarMEP
+            let ticketPriceDolares = puntaCompra ticket / fromMaybe 1 dolarMEP
+            let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
                            " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
-                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n"
+                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
+                           " Total: " ++ show opAmountDolares ++ " dolares\n" ++
+                           " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
             appendFile logFileName ordenLog
-        False -> putStrLn "  [ - ! - ] Compra fallida"
-    return rsp
+            return True
+        else do
+            putStrLn "  [ - ! - ] Compra fallida"
+            return False
 
 placeSellOrder :: Connection -> ApiConfig -> Ticket -> Double -> IO Bool
 placeSellOrder _ config ticket cantidad = do
     let cantidadVenta = cantidad * (0.82 :: Double)
     orden <- createOrdenRequest ticket cantidadVenta
     putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
-    putStrLn $ " [I] Total recibido " ++ show (fromIntegral (maybe 0 id (ordenCantidad orden)) * puntaVenta ticket)
+    putStrLn $ " [I] Total recibido " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket)
     rsp <- enviarOrdenVenta config orden
     currentTime <- getCurrentTimeArgentina
-    case rsp of
-        True -> do
+    if rsp
+        then do
             putStrLn "  [ + ! + ] Venta exitosa"
             let logFileName = "ordenes_ejecutadas.log"
-            let ordenLog = "Venta de " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++
+            dolarMEP <- getDolarMEP config (ticketName ticket)
+            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / fromMaybe 1 dolarMEP
+            let ticketPriceDolares = puntaVenta ticket / fromMaybe 1 dolarMEP
+            let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++
                            " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
-                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n"
+                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
+                           " Total: " ++ show opAmountDolares ++ " dolares\n" ++
+                           " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
             appendFile logFileName ordenLog
-        False -> putStrLn "  [ - ! - ] Venta fallida"
-    return rsp
+            return True
+        else do
+            putStrLn "  [ - ! - ] Venta fallida"
+            return False
 
 -- Función para procesar un ticket según su estado y precios actuales
 processTicket :: Connection -> ApiConfig -> Ticket -> IO ()
