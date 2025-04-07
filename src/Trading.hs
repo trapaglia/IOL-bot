@@ -38,7 +38,7 @@ createOrdenRequest ticket cantidad = do
 placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
 placeBuyOrder _ config ticket = do
     (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-    let logFileName = "ordenes_ejecutadas.log"
+    let logFileName = "logs/ordenes_ejecutadas.log"
     if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
     then do
         -- let operacionPesos = True
@@ -84,7 +84,7 @@ placeBuyOrder _ config ticket = do
 placeSellOrder :: Connection -> ApiConfig -> Ticket -> Double -> IO Bool
 placeSellOrder _ config ticket cantidad = do
     (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
-    let logFileName = "ordenes_ejecutadas.log"
+    let logFileName = "logs/ordenes_ejecutadas.log"
     if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
     then do
         -- let operacionPesos = True

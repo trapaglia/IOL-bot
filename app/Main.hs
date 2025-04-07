@@ -12,22 +12,22 @@ import Types ( ApiConfig(..), Precios(..), Ticket(..)
             , EstadoCuenta(..), Cuenta(..), SaldoDetalle(..)
             )
 import Api (getCredentials, getAllCotizaciones, getEstadoCuenta)
-import Database
+import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTickets)
 import Trading (processTicket)
 import Database.SQLite.Simple (Connection, close)
-import Control.Monad (forM_, forever)
+import Control.Monad (forM_, forever, when)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
 import Data.List (find)
 import Text.Printf (printf)
 import Utils (getCurrentTimeArgentina)
+import Data.IORef
 
 -- Función para actualizar todos los tickets
 updateAllTickets :: Connection -> ApiConfig -> IO ()
 updateAllTickets conn config = do
     putStrLn "\nActualizando tickets..."
-    allTickets <- getAllTickets conn
     
     -- Obtener todas las cotizaciones de una vez
     maybeCotizaciones <- getAllCotizaciones config
@@ -36,6 +36,7 @@ updateAllTickets conn config = do
         Just cotizaciones -> do
             now <- getCurrentTimeArgentina
             -- Para cada ticket, buscar su cotización en la respuesta
+            allTickets <- getAllTickets conn
             forM_ allTickets $ \ticket -> do
                 putStrLn $ "Actualizando " ++ ticketName ticket ++ "..."
                 let maybeInstrumento = find (\inst -> instSimbolo inst == ticketName ticket) (titulos cotizaciones)
@@ -64,33 +65,48 @@ updateAllTickets conn config = do
                     Nothing -> putStrLn $ "  No se encontró cotización para " ++ ticketName ticket
 
 -- Bucle principal del programa
-mainLoop :: Connection -> ApiConfig -> MVar () -> IO ()
-mainLoop conn config stopMVar = do
+mainLoop :: Connection -> ApiConfig -> MVar () -> IORef Int -> IO ()
+mainLoop conn config stopMVar iterationRef = do
+    iteration <- readIORef iterationRef
+    putStrLn $ "\nIteración " ++ show iteration
+    
     catch
         (updateAllTickets conn config)
         (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
     
-    putStrLn "\nEstado de cuenta:"
-    maybeEstadoCuenta <- getEstadoCuenta config
-    case maybeEstadoCuenta of
-        Just ec -> do
-            let cuentaPesos = head (cuentas ec)
-            let cuentaDolares = (cuentas ec) !! 1
-            putStrLn "\nCuenta Pesos"
-            case saldos cuentaPesos of
-                (s:_) -> do
-                    putStrLn $ "Saldo: " ++ show (saldo s)
-                    putStrLn $ "Comprometido: " ++ show (comprometido s)
-                    putStrLn $ "Disponible: " ++ show (disponible s)
-                [] -> putStrLn "No hay información de saldos"
-            putStrLn "\nCuenta Dolares"
-            case saldos cuentaDolares of
-                (s:_) -> do
-                    putStrLn $ "Saldo: " ++ show (saldo s)
-                    putStrLn $ "Comprometido: " ++ show (comprometido s)
-                    putStrLn $ "Disponible: " ++ show (disponible s)
-                [] -> putStrLn "No hay información de saldos"
-        Nothing -> putStrLn "No se pudo obtener el estado de cuenta"
+    -- Obtener estado de cuenta cada 10 iteraciones
+    when (iteration `mod` 15 == 0) $ do
+        putStrLn "\nEstado de cuenta:"
+        maybeEstadoCuenta <- getEstadoCuenta config
+        case maybeEstadoCuenta of
+            Just ec -> do
+                let cuentaPesos = head (cuentas ec)
+                let cuentaDolares = (cuentas ec) !! 1
+                
+                -- Guardar en la base de datos
+                insertEstadoCuenta conn cuentaPesos
+                insertEstadoCuenta conn cuentaDolares
+                
+                putStrLn "\nCuenta Pesos"
+                case saldos cuentaPesos of
+                    (s:_) -> do
+                        putStrLn $ "Saldo: " ++ show (saldo s)
+                        putStrLn $ "Comprometido: " ++ show (comprometido s)
+                        putStrLn $ "Disponible: " ++ show (disponible s)
+                    [] -> putStrLn "No hay información de saldos"
+                putStrLn "\nCuenta Dolares"
+                case saldos cuentaDolares of
+                    (s:_) -> do
+                        putStrLn $ "Saldo: " ++ show (saldo s)
+                        putStrLn $ "Comprometido: " ++ show (comprometido s)
+                        putStrLn $ "Disponible: " ++ show (disponible s)
+                    [] -> putStrLn "No hay información de saldos"
+            Nothing -> putStrLn "No se pudo obtener el estado de cuenta"
+
+    putStrLn "\nContenido del archivo logs/ordenes_ejecutadas.log:"
+    cont <- readFile "logs/ordenes_ejecutadas.log"
+    putStrLn cont
+
     -- Verificar si debemos detener el programa
     stopped <- tryTakeMVar stopMVar
     case stopped of
@@ -98,13 +114,14 @@ mainLoop conn config stopMVar = do
         Nothing -> do
             -- Esperar 60 segundos
             threadDelay (60 * 1000000)  -- threadDelay toma microsegundos
-            -- mainLoop conn config stopMVar
+            modifyIORef' iterationRef (+1)
 
 -- Función para ejecutar el bucle principal con manejo de interrupciones
 runMainLoop :: Connection -> ApiConfig -> IO ()
 runMainLoop conn config = do
     putStrLn "\nIniciando bucle principal... (Presiona Ctrl+C para detener)"
     stopMVar <- newEmptyMVar
+    iterationRef <- newIORef 1  -- Crear referencia para la iteración
     
     -- Configurar manejador de Ctrl+C
     let cleanup = do
@@ -116,7 +133,7 @@ runMainLoop conn config = do
     
     -- Ejecutar el bucle principal con manejo de excepciones
     catch 
-        (forever $ mainLoop conn config stopMVar)
+        (forever $ mainLoop conn config stopMVar iterationRef)
         (\e -> do
             case e of
                 -- Si es una interrupción por Ctrl+C
