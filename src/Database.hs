@@ -14,6 +14,7 @@ module Database
     , updateTicket
     , getLatestTenencias
     , getLatestEstadoCuenta
+    , getLastEstadoCuenta
     , getLatestToken
     , DBTenencia(..)
     , DBEstadoCuenta(..)
@@ -308,6 +309,18 @@ getLatestEstadoCuenta conn = do
         \ORDER BY e1.numero_cuenta"
     putStrLn $ "Número de resultados encontrados: " ++ show (length results)
     return results
+
+getLastEstadoCuenta :: Connection -> IO [DBEstadoCuenta]
+getLastEstadoCuenta conn = query_ conn
+    "SELECT e1.* FROM estado_cuenta e1 \
+    \INNER JOIN ( \
+    \    SELECT numero_cuenta, tipo_cuenta, MAX(timestamp) as max_timestamp \
+    \    FROM estado_cuenta \
+    \    GROUP BY numero_cuenta, tipo_cuenta \
+    \) e2 \
+    \ON e1.numero_cuenta = e2.numero_cuenta \
+    \AND e1.tipo_cuenta = e2.tipo_cuenta \
+    \AND e1.timestamp = e2.max_timestamp"
 
 getLatestToken :: Connection -> IO (Maybe DBToken)
 getLatestToken conn = do

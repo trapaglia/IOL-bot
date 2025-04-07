@@ -12,7 +12,7 @@ import Types ( ApiConfig(..), Precios(..), Ticket(..)
             , EstadoCuenta(..), Cuenta(..), SaldoDetalle(..)
             )
 import Api (getCredentials, getAllCotizaciones, getEstadoCuenta)
-import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTickets)
+import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTickets, getLastEstadoCuenta, DBEstadoCuenta(..))
 import Trading (processTicket)
 import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_, forever, when)
@@ -20,6 +20,7 @@ import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
 import Data.List (find)
+import Data.Maybe (listToMaybe)
 import Text.Printf (printf)
 import Utils (getCurrentTimeArgentina)
 import Data.IORef
@@ -74,9 +75,10 @@ mainLoop conn config stopMVar iterationRef = do
         (updateAllTickets conn config)
         (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
     
-    -- Obtener estado de cuenta cada 10 iteraciones
-    when (iteration `mod` 15 == 0) $ do
-        putStrLn "\nEstado de cuenta:"
+    putStrLn "\nEstado de cuenta:"
+    if (iteration `mod` 15 == 0) 
+    then do
+        -- Obtener estado de cuenta desde la API cada 15 iteraciones
         maybeEstadoCuenta <- getEstadoCuenta config
         case maybeEstadoCuenta of
             Just ec -> do
@@ -87,14 +89,14 @@ mainLoop conn config stopMVar iterationRef = do
                 insertEstadoCuenta conn cuentaPesos
                 insertEstadoCuenta conn cuentaDolares
                 
-                putStrLn "\nCuenta Pesos"
+                putStrLn "\nCuenta Pesos (desde API)"
                 case saldos cuentaPesos of
                     (s:_) -> do
                         putStrLn $ "Saldo: " ++ show (saldo s)
                         putStrLn $ "Comprometido: " ++ show (comprometido s)
                         putStrLn $ "Disponible: " ++ show (disponible s)
                     [] -> putStrLn "No hay información de saldos"
-                putStrLn "\nCuenta Dolares"
+                putStrLn "\nCuenta Dolares (desde API)"
                 case saldos cuentaDolares of
                     (s:_) -> do
                         putStrLn $ "Saldo: " ++ show (saldo s)
@@ -102,6 +104,30 @@ mainLoop conn config stopMVar iterationRef = do
                         putStrLn $ "Disponible: " ++ show (disponible s)
                     [] -> putStrLn "No hay información de saldos"
             Nothing -> putStrLn "No se pudo obtener el estado de cuenta"
+    else do
+        -- Obtener último estado de cuenta desde la base de datos
+        cuentas_api <- getLastEstadoCuenta conn
+        case cuentas_api of
+            [] -> putStrLn "No hay información de cuentas en la base de datos"
+            _ -> do
+                let maybeCuentaPesos = listToMaybe [c | c <- cuentas_api, cuentaMoneda c == "peso_Argentino"]
+                let maybeCuentaDolares = listToMaybe [c | c <- cuentas_api, cuentaMoneda c == "dolar_Estadounidense"]
+                
+                putStrLn "\nCuenta Pesos (desde DB)"
+                case maybeCuentaPesos of
+                    Just cuenta -> do
+                        putStrLn $ "Saldo: " ++ show (cuentaSaldo cuenta)
+                        putStrLn $ "Comprometido: " ++ show (cuentaComprometido cuenta)
+                        putStrLn $ "Disponible: " ++ show (cuentaDisponible cuenta)
+                    Nothing -> putStrLn "No se encontró la cuenta en pesos en la base de datos"
+                
+                putStrLn "\nCuenta Dolares (desde DB)"
+                case maybeCuentaDolares of
+                    Just cuenta -> do
+                        putStrLn $ "Saldo: " ++ show (cuentaSaldo cuenta)
+                        putStrLn $ "Comprometido: " ++ show (cuentaComprometido cuenta)
+                        putStrLn $ "Disponible: " ++ show (cuentaDisponible cuenta)
+                    Nothing -> putStrLn "No se encontró la cuenta en dólares en la base de datos"
 
     putStrLn "\nContenido del archivo logs/ordenes_ejecutadas.log:"
     cont <- readFile "logs/ordenes_ejecutadas.log"
