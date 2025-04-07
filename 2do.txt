@@ -1,11 +1,11 @@
-agregar total gastado no solo cantidad
-ver como agregar un precio en dolares
-comparar t0 y t1
-entrar meli y mstr
-agregar estado cuenta al print
-guardar tenencias
+[ ] agregar total gastado no solo cantidad
+[ ] ver como agregar un precio en dolares
+[ ] comparar t0 y t1
+[ ] entrar meli y mstr
+[ ] agregar estado cuenta al print
+[ ] guardar tenencias
 
-obtener todos los tickets y actualizar los q me interesan
-flags
+[ ] obtener todos los tickets y actualizar los q me interesan
+[ ] flags
 
 

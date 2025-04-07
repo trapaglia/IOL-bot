@@ -15,25 +15,6 @@ import Utils (getCurrentTimeArgentina)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Time (addUTCTime)
 
--- Funciones placeholder para operaciones de trading
-placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
-placeBuyOrder _ config ticket = do
-    let cantidadCompra = montoOperacion / puntaCompra ticket
-    orden <- createOrdenRequest ticket cantidadCompra
-    putStrLn $ "  [ + ! + ] Comprando " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
-    rsp <- enviarOrdenCompra config orden
-    currentTime <- getCurrentTimeArgentina
-    case rsp of
-        True -> do
-            putStrLn "  [ + ! + ] Compra exitosa"
-            let logFileName = "ordenes_ejecutadas.log"
-            let ordenLog = "Compra de " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
-                           " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
-                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n"
-            appendFile logFileName ordenLog
-        False -> putStrLn "  [ - ! - ] Compra fallida"
-    return rsp
-
 createOrdenRequest :: Ticket -> Double -> IO OrdenRequest
 createOrdenRequest ticket cantidad = do
     currentTime <- getCurrentTimeArgentina
@@ -51,13 +32,43 @@ createOrdenRequest ticket cantidad = do
         , ordenIdFuente = Nothing
         }
 
+placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
+placeBuyOrder _ config ticket = do
+    let cantidadCompra = montoOperacion / puntaCompra ticket
+    orden <- createOrdenRequest ticket cantidadCompra
+    putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
+    putStrLn $ " [I] Total gastado " ++ show (fromIntegral (maybe 0 id (ordenCantidad orden)) * puntaCompra ticket)
+    rsp <- enviarOrdenCompra config orden
+    currentTime <- getCurrentTimeArgentina
+    case rsp of
+        True -> do
+            putStrLn "  [ + ! + ] Compra exitosa"
+            let logFileName = "ordenes_ejecutadas.log"
+            let ordenLog = "Compra de " ++ show cantidadCompra ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
+                           " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
+                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n"
+            appendFile logFileName ordenLog
+        False -> putStrLn "  [ - ! - ] Compra fallida"
+    return rsp
 
 placeSellOrder :: Connection -> ApiConfig -> Ticket -> Double -> IO Bool
 placeSellOrder _ config ticket cantidad = do
-    let cantidadVenta = fromIntegral cantidad * (0.82 :: Double)
+    let cantidadVenta = cantidad * (0.82 :: Double)
     orden <- createOrdenRequest ticket cantidadVenta
     putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
-    enviarOrdenVenta config orden
+    putStrLn $ " [I] Total recibido " ++ show (fromIntegral (maybe 0 id (ordenCantidad orden)) * puntaVenta ticket)
+    rsp <- enviarOrdenVenta config orden
+    currentTime <- getCurrentTimeArgentina
+    case rsp of
+        True -> do
+            putStrLn "  [ + ! + ] Venta exitosa"
+            let logFileName = "ordenes_ejecutadas.log"
+            let ordenLog = "Venta de " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++
+                           " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
+                           " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n"
+            appendFile logFileName ordenLog
+        False -> putStrLn "  [ - ! - ] Venta fallida"
+    return rsp
 
 -- Función para procesar un ticket según su estado y precios actuales
 processTicket :: Connection -> ApiConfig -> Ticket -> IO ()
@@ -127,9 +138,8 @@ processTicket conn config ticket = do
                                 putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                                 return ()
                             Just cantidad -> do
-                                let sellAmount = floor (fromIntegral cantidad * (0.82 :: Double)) :: Int
-                                let opAmount = if sellAmount > 0 then sellAmount else 1
-                                success <- placeSellOrder conn config ticket opAmount
+                                let sellAmount = fromIntegral cantidad * (0.82 :: Double)
+                                success <- placeSellOrder conn config ticket sellAmount
                                 when success $ do
                                     let updatedTicket = ticket { estado = SecondSell }
                                     updateTicket conn updatedTicket
@@ -149,9 +159,8 @@ processTicket conn config ticket = do
                                 putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                                 return ()
                             Just cantidad -> do
-                                let sellAmount = floor (fromIntegral cantidad * (0.82 :: Double)) :: Int
-                                let opAmount = if sellAmount > 0 then sellAmount else 1
-                                success <- placeSellOrder conn config ticket opAmount
+                                let sellAmount = fromIntegral cantidad * (0.82 :: Double)
+                                success <- placeSellOrder conn config ticket sellAmount
                                 when success $ do
                                     let updatedTicket = ticket { estado = SecondSell }
                                     updateTicket conn updatedTicket
@@ -171,7 +180,7 @@ processTicket conn config ticket = do
                                 putStrLn $ "  [ - ! - ] No se pudo obtener la cantidad disponible de " ++ ticketName ticket
                                 return ()
                             Just cantidad -> do
-                                let sellAmount = cantidad
+                                let sellAmount = fromIntegral cantidad
                                 success <- placeSellOrder conn config ticket sellAmount
                                 when success $ do
                                     let updatedTicket = ticket { estado = SecondSell }
