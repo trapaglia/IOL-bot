@@ -50,8 +50,8 @@ placeBuyOrder _ config ticket = do
 
         let cantidadCompra = montoOperacion / puntaCompra ticket
         orden <- createOrdenRequest ticket cantidadCompra
-        putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket)
-        putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket)
+        putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++ " pesos."
+        putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket) ++ " pesos."
         rsp <- enviarOrdenCompra config orden
         currentTime <- getCurrentTimeArgentina
         if rsp then do
@@ -61,11 +61,12 @@ placeBuyOrder _ config ticket = do
                                 DolarMEP value -> value
             let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / dolarMEPValue
             let ticketPriceDolares = puntaCompra ticket / dolarMEPValue
-            let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++
-                        " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
-                        " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
-                        " Total: " ++ show opAmountDolares ++ " dolares\n" ++
-                        " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
+            let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
+                    " a " ++ show (puntaCompra ticket) ++ " pesos.\n" ++
+                    " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
+                    " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
+                    " Total: " ++ show opAmountDolares ++ " dolares, " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket) ++ " pesos.\n" ++
+                    " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
             appendFile logFileName ordenLog
             return True
         else do
@@ -101,10 +102,11 @@ placeSellOrder _ config ticket cantidad = do
                                 DolarMEP value -> value
             let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / dolarMEPValue
             let ticketPriceDolares = puntaVenta ticket / dolarMEPValue
-            let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++
+            let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
+                        " a " ++ show (puntaVenta ticket) ++ " pesos.\n" ++
                         " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                         " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
-                        " Total: " ++ show opAmountDolares ++ " dolares\n" ++
+                        " Total: " ++ show opAmountDolares ++ " dolares, " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket) ++ " pesos.\n" ++
                         " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
             appendFile logFileName ordenLog
             return True

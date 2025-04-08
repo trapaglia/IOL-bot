@@ -27,8 +27,8 @@ import Utils (getCurrentTimeArgentina)
 import Data.IORef
 
 -- Función para actualizar todos los tickets
-updateAllTickets :: Connection -> ApiConfig -> IO ()
-updateAllTickets conn config = do
+updateAllTickets :: Connection -> ApiConfig -> Bool -> IO ()
+updateAllTickets conn config verbose = do
     putStrLn "\nActualizando tickets..."
     
     -- Obtener todas las cotizaciones de una vez
@@ -52,19 +52,20 @@ updateAllTickets conn config = do
                                         , lastUpdate = now
                                         }
                                 updateTicket conn updatedTicket
-                                putStrLn $ "  Punta Compra: " ++ show (puntaCompra updatedTicket)
-                                putStrLn $ "  Punta Venta: " ++ show (puntaVenta updatedTicket)
-                                putStrLn $ "  Estado: " ++ show (estado updatedTicket)
-                                putStrLn $ "  Precio de compra1: " ++ show (compra1 $ precios updatedTicket)
-                                putStrLn $ "  Precio de venta1: " ++ show (venta1 $ precios updatedTicket)
-                                putStrLn $ "  Precio de compra2: " ++ show (compra2 $ precios updatedTicket)
-                                putStrLn $ "  Precio de venta2: " ++ show (venta2 $ precios updatedTicket)
-                                putStrLn $ "  Volumen: " ++ printf "%.2f" (instVolumen instrumento)
-                                putStrLn $ "  Operaciones: " ++ show (instCantidadOperaciones instrumento)
+                                when verbose $ do
+                                    putStrLn $ "  Punta Compra: " ++ show (puntaCompra updatedTicket)
+                                    putStrLn $ "  Punta Venta: " ++ show (puntaVenta updatedTicket)
+                                    putStrLn $ "  Estado: " ++ show (estado updatedTicket)
+                                    putStrLn $ "  Precio de compra1: " ++ show (compra1 $ precios updatedTicket)
+                                    putStrLn $ "  Precio de venta1: " ++ show (venta1 $ precios updatedTicket)
+                                    putStrLn $ "  Precio de compra2: " ++ show (compra2 $ precios updatedTicket)
+                                    putStrLn $ "  Precio de venta2: " ++ show (venta2 $ precios updatedTicket)
+                                    putStrLn $ "  Volumen: " ++ printf "%.2f" (instVolumen instrumento)
+                                    putStrLn $ "  Operaciones: " ++ show (instCantidadOperaciones instrumento)
 
                                 processTicket conn config updatedTicket
-                            Nothing -> putStrLn $ "  No hay puntas disponibles para " ++ ticketName ticket
-                    Nothing -> putStrLn $ "  No se encontró cotización para " ++ ticketName ticket
+                            Nothing -> when verbose $ putStrLn $ "  No hay puntas disponibles para " ++ ticketName ticket
+                    Nothing -> when verbose $ putStrLn $ "  No se encontró cotización para " ++ ticketName ticket
 
 -- Bucle principal del programa
 mainLoop :: Connection -> ApiConfig -> MVar () -> IORef Int -> IO ()
@@ -72,13 +73,13 @@ mainLoop conn config stopMVar iterationRef = do
     iteration <- readIORef iterationRef
     putStrLn $ "\nIteración " ++ show iteration
     
-    catch
-        (updateAllTickets conn config)
-        (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
     
     putStrLn "\nEstado de cuenta:"
     if (iteration `mod` 15 == 0) 
     then do
+        catch
+            (updateAllTickets conn config True)
+            (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
         -- Obtener estado de cuenta desde la API cada 15 iteraciones
         maybeEstadoCuenta <- getEstadoCuenta config
         case maybeEstadoCuenta of
@@ -107,6 +108,9 @@ mainLoop conn config stopMVar iterationRef = do
                     [] -> putStrLn "No hay información de saldos"
             Nothing -> putStrLn "No se pudo obtener el estado de cuenta"
     else do
+        catch
+            (updateAllTickets conn config False)
+            (\e -> putStrLn $ "Error en el bucle principal: " ++ show (e :: SomeException))
         -- Obtener último estado de cuenta desde la base de datos
         cuentas_api <- getLastEstadoCuenta conn
         case cuentas_api of
