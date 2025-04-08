@@ -48,10 +48,10 @@ placeBuyOrder _ config ticket = do
         --         putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
         --         putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
 
-        let cantidadCompra = montoOperacion / puntaCompra ticket
+        let cantidadCompra = montoOperacion / puntaVenta ticket
         orden <- createOrdenRequest ticket cantidadCompra
-        putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++ " pesos."
-        putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket) ++ " pesos."
+        putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++ " pesos."
+        putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket) ++ " pesos."
         rsp <- enviarOrdenCompra config orden
         currentTime <- getCurrentTimeArgentina
         if rsp then do
@@ -59,14 +59,15 @@ placeBuyOrder _ config ticket = do
             dolarMEP <- getDolarMEP config (ticketName ticket)
             let dolarMEPValue = case fromMaybe (DolarMEP 1.0) dolarMEP of
                                 DolarMEP value -> value
-            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / dolarMEPValue
-            let ticketPriceDolares = puntaCompra ticket / dolarMEPValue
+            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / dolarMEPValue
+            let ticketPriceDolares = puntaVenta ticket / dolarMEPValue
             let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
-                    " a " ++ show (puntaCompra ticket) ++ " pesos.\n" ++
+                    " a " ++ show (puntaVenta ticket) ++ " pesos.\n" ++
                     " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                     " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
                     " Total: " ++ show opAmountDolares ++ " dolares, " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket) ++ " pesos.\n" ++
-                    " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares"
+                    " Precio del ticket: " ++ show ticketPriceDolares ++ " dolares.\n" ++
+                    " Con un dolar MEP de " ++ show dolarMEPValue
             appendFile logFileName ordenLog
             return True
         else do
@@ -91,8 +92,8 @@ placeSellOrder _ config ticket cantidad = do
         -- let operacionPesos = True
         let cantidadVenta = cantidad * (0.82 :: Double)
         orden <- createOrdenRequest ticket cantidadVenta
-        putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket)
-        putStrLn $ " [I] Total recibido " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket)
+        putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++ " pesos."
+        putStrLn $ " [I] Total recibido " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket) ++ " pesos."
         rsp <- enviarOrdenVenta config orden
         currentTime <- getCurrentTimeArgentina
         if rsp then do
@@ -100,10 +101,10 @@ placeSellOrder _ config ticket cantidad = do
             dolarMEP <- getDolarMEP config (ticketName ticket)
             let dolarMEPValue = case fromMaybe (DolarMEP 1.0) dolarMEP of
                                 DolarMEP value -> value
-            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / dolarMEPValue
-            let ticketPriceDolares = puntaVenta ticket / dolarMEPValue
+            let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / dolarMEPValue
+            let ticketPriceDolares = puntaCompra ticket / dolarMEPValue
             let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
-                        " a " ++ show (puntaVenta ticket) ++ " pesos.\n" ++
+                        " a " ++ show (puntaCompra ticket) ++ " pesos.\n" ++
                         " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                         " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
                         " Total: " ++ show opAmountDolares ++ " dolares, " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket) ++ " pesos.\n" ++
