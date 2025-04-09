@@ -295,7 +295,7 @@ getAllCotizaciones config = do
 -- Función para obtener todas las cotizaciones de CEDEARs
 getCEDEARsCotizaciones :: ApiConfig -> IO (Maybe CotizacionesResponse)
 getCEDEARsCotizaciones config = do
-    response <- callApi config "https://api.invertironline.com/api/v2/Cotizaciones/Acciones/CEDEARs/argentina"
+    response <- callApi config "https://api.invertironline.com/api/v2/Cotizaciones/acciones/CEDEARs/argentina"
     case response of
         Nothing -> do
             putStrLn "Error al obtener cotizaciones de CEDEARs"
@@ -304,6 +304,8 @@ getCEDEARsCotizaciones config = do
             let cotizaciones = decode body :: Maybe CotizacionesResponse
             case cotizaciones of
                 Just cot -> do
+                    putStrLn $ "CEDEARs decodificados exitosamente. Cantidad: " ++ show (length $ titulos cot)
+                    mapM_ (\t -> putStrLn $ "  - " ++ instSimbolo t ++ ": " ++ show (instUltimoPrecio t)) (take 5 $ titulos cot)
                     return $ Just cot
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta de CEDEARs"

@@ -139,6 +139,7 @@ instance FromJSON PuntaInstrumento where
 
 data Instrumento = Instrumento
     { instSimbolo :: String
+    , instDescripcion :: String
     , instPuntas :: Maybe PuntaInstrumento
     , instUltimoPrecio :: Double
     , instVariacionPorcentual :: Double
@@ -147,23 +148,20 @@ data Instrumento = Instrumento
     , instMinimo :: Double
     , instUltimoCierre :: Double
     , instVolumen :: Double
-    , instCantidadOperaciones :: Int
+    , instCantidadOperaciones :: Double
     , instFecha :: String
     , instTipoOpcion :: Maybe String
     , instPrecioEjercicio :: Maybe Double
     , instFechaVencimiento :: Maybe String
     , instMercado :: String
     , instMoneda :: String
-    , instDescripcion :: String
-    , instPlazo :: String
-    , instLaminaMinima :: Int
-    , instLote :: Int
     } deriving (Show, Generic)
 
 instance FromJSON Instrumento where
     parseJSON = genericParseJSON defaultOptions
         { fieldLabelModifier = \s -> case drop 4 s of  -- quita el prefijo "inst"
             "Simbolo" -> "simbolo"
+            "Descripcion" -> "descripcion"
             "Puntas" -> "puntas"
             "UltimoPrecio" -> "ultimoPrecio"
             "VariacionPorcentual" -> "variacionPorcentual"
@@ -179,10 +177,6 @@ instance FromJSON Instrumento where
             "FechaVencimiento" -> "fechaVencimiento"
             "Mercado" -> "mercado"
             "Moneda" -> "moneda"
-            "Descripcion" -> "descripcion"
-            "Plazo" -> "plazo"
-            "LaminaMinima" -> "laminaMinima"
-            "Lote" -> "lote"
             x -> x
         }
 
