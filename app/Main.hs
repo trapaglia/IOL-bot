@@ -16,7 +16,7 @@ import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTicket
 import Trading (processTicket)
 import Database (deleteTable)
 import Database.SQLite.Simple (Connection, close)
-import Control.Monad (forM_, forever)
+import Control.Monad (forM_, forever, when)
 import Control.Concurrent (threadDelay, newEmptyMVar, putMVar, MVar, tryTakeMVar)
 import Control.Exception (catch, SomeException, fromException, AsyncException)
 import Control.Concurrent.Async()
@@ -74,7 +74,7 @@ mainLoop conn config stopMVar iterationRef = do
     putStrLn $ "\nIteración " ++ show iteration
     
     
-    putStrLn "\nEstado de cuenta:"
+    putStrLn $ "\nIte mod 15 = " ++ show (mod iteration 15) ++ " Estado de cuenta:"
     if (iteration `mod` 15 == 0) 
     then do
         catch

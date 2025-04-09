@@ -10,8 +10,8 @@ compareMEP config symbol = do
     standardDolarMEP <- getDolarMEP config "AL30"
     case (symbolDolarMEP, standardDolarMEP) of
         (Just (DolarMEP symbolMEP), Just (DolarMEP standardMEP)) -> return (symbolMEP, standardMEP)
-        (Nothing, Just (DolarMEP standardMEP)) -> return(0.0, standardMEP)
-        _ -> return (0.0, 0.0)
+        (Nothing, Just (DolarMEP standardMEP)) -> return(1.0, standardMEP)
+        _ -> return (1.0, 1.0)
 
 -- Función para obtener la cantidad de un símbolo específico del portafolio
 getCantidadPortfolio :: ApiConfig -> String -> IO (Maybe Int)

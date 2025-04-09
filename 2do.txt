@@ -3,6 +3,7 @@
 [x] entrar meli y mstr
 [x] agregar estado cuenta al print
 [x] guardar tenencias
+[ ] popular la database de operaciones en lugar de usar un txt
 
 [x] obtener todos los tickets y actualizar los q me interesan
 [ ] flags
