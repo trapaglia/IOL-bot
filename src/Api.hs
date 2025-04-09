@@ -13,6 +13,7 @@ module Api
     , getDolarMEP
     , getPortfolio
     , getAllCotizaciones
+    , getCEDEARsCotizaciones
     , OrdenRequest(..)
     ) where
 
@@ -289,4 +290,21 @@ getAllCotizaciones config = do
                     return $ Just cot
                 Nothing -> do
                     putStrLn "Error al decodificar las cotizaciones"
+                    return Nothing
+
+-- Función para obtener todas las cotizaciones de CEDEARs
+getCEDEARsCotizaciones :: ApiConfig -> IO (Maybe CotizacionesResponse)
+getCEDEARsCotizaciones config = do
+    response <- callApi config "https://api.invertironline.com/api/v2/Cotizaciones/Acciones/CEDEARs/argentina"
+    case response of
+        Nothing -> do
+            putStrLn "Error al obtener cotizaciones de CEDEARs"
+            return Nothing
+        Just body -> do
+            let cotizaciones = decode body :: Maybe CotizacionesResponse
+            case cotizaciones of
+                Just cot -> do
+                    return $ Just cot
+                Nothing -> do
+                    putStrLn "Error al decodificar la respuesta de CEDEARs"
                     return Nothing

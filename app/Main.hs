@@ -11,7 +11,7 @@ import Types ( ApiConfig(..), Precios(..), Ticket(..)
             , precioCompra, precioVenta
             , EstadoCuenta(..), Cuenta(..), SaldoDetalle(..)
             )
-import Api (getCredentials, getAllCotizaciones, getEstadoCuenta)
+import Api (getCredentials, getAllCotizaciones, getCEDEARsCotizaciones, getEstadoCuenta)
 import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTickets, getLastEstadoCuenta, DBEstadoCuenta(..))
 import Trading (processTicket)
 import Database (deleteTable)
@@ -33,15 +33,24 @@ updateAllTickets conn config verbose = do
     
     -- Obtener todas las cotizaciones de una vez
     maybeCotizaciones <- getAllCotizaciones config
-    case maybeCotizaciones of
-        Nothing -> putStrLn "Error al obtener cotizaciones"
-        Just cotizaciones -> do
+    maybeCotizacionesCedear <- getCEDEARsCotizaciones config
+    
+    -- Combinar las cotizaciones de ambas fuentes
+    let allCotizaciones = case (maybeCotizaciones, maybeCotizacionesCedear) of
+            (Just cot1, Just cot2) -> titulos cot1 ++ titulos cot2
+            (Just cot1, Nothing) -> titulos cot1
+            (Nothing, Just cot2) -> titulos cot2
+            (Nothing, Nothing) -> []
+            
+    if null allCotizaciones
+        then putStrLn "Error al obtener cotizaciones"
+        else do
             now <- getCurrentTimeArgentina
-            -- Para cada ticket, buscar su cotización en la respuesta
+            -- Para cada ticket, buscar su cotización en la respuesta combinada
             allTickets <- getAllTickets conn
             forM_ allTickets $ \ticket -> do
                 putStrLn $ "Actualizando " ++ ticketName ticket ++ "..."
-                let maybeInstrumento = find (\inst -> instSimbolo inst == ticketName ticket) (titulos cotizaciones)
+                let maybeInstrumento = find (\inst -> instSimbolo inst == ticketName ticket) allCotizaciones
                 case maybeInstrumento of
                     Just instrumento -> do
                         case instPuntas instrumento of
