@@ -58,7 +58,7 @@ placeBuyOrder _ config ticket = do
             putStrLn "  [ + ! + ] Compra exitosa"
             let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket / standardDolarMEP
             let ticketPriceDolares = puntaVenta ticket / standardDolarMEP
-            let ordenLog = "Compra de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
+            let ordenLog = "\n    [ + ] - COMPRA - de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
                     " a " ++ show (puntaVenta ticket) ++ " pesos.\n" ++
                     " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                     " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
@@ -97,7 +97,7 @@ placeSellOrder _ config ticket cantidad = do
             putStrLn "  [ + ! + ] Venta exitosa"
             let opAmountDolares = fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket / standardDolarMEP
             let ticketPriceDolares = puntaCompra ticket / standardDolarMEP
-            let ordenLog = "Venta de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
+            let ordenLog = "\n    [ + ] - VENTA - de " ++ show (fromMaybe 0 (ordenCantidad orden)) ++ " de " ++ ticketName ticket ++ 
                         " a " ++ show (puntaCompra ticket) ++ " pesos.\n" ++
                         " con plazo " ++ ordenPlazo orden ++ " y validez " ++ ordenValidez orden ++
                         " a las " ++ formatTime defaultTimeLocale "%H:%M:%S" currentTime ++ "\n" ++
