@@ -9,3 +9,5 @@
 [ ] flags
 [ ] comparar t0 y t1
 [ ] si falla por valor dolar MEP comprar en dolares
+
+[ ] Add check de si me alcanza para BUY

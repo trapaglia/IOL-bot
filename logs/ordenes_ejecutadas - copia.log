@@ -6,4 +6,53 @@ Compra de 18 de BBAR a 6540.0 pesos.
  con plazo t0 y validez 2025-04-08T11:46:06.076Z a las 10:46:13
  Total: 117720.0 dolares, 126000.0 pesos.
  Precio del ticket: 6540.0 dolares.
+  [ + E] Dolar MEP: 1.0 AL30: 1379.6Compra de 2 de YPFD a 40500.0 pesos.
+ con plazo t0 y validez 2025-04-09T11:31:22.957Z a las 10:31:27
+ Total: 58.712670339228765 dolares, 0.0 pesos.
+ Precio del ticket: 29.356335169614383 dolares.
+ Con un dolar MEP de 1379.6Compra de 5 de MELI a 20325.0 pesos.
+ con plazo t0 y validez 2025-04-09T11:32:32.898Z a las 10:32:35
+ Total: 73.66265584227313 dolares, 106625.0 pesos.
+ Precio del ticket: 14.732531168454626 dolares.
+ Con un dolar MEP de 1379.6  [ + E] Ticket TRAN no cumple con la condición de compra (Relacion Dolar MEP = 7.248477819657872e-4)
+  [ + E] Dolar MEP: 1.0 AL30: 1379.6Compra de 48 de TGNO4 a 2455.0 pesos.
+ con plazo t0 y validez 2025-04-09T11:32:48.922Z a las 10:32:51
+ Total: 85.41606262684837 dolares, 120720.0 pesos.
+ Precio del ticket: 1.7795013047260078 dolares.
+ Con un dolar MEP de 1379.6Compra de 77 de METR a 1540.0 pesos.
+ con plazo t0 y validez 2025-04-09T11:34:06.824Z a las 10:34:09
+ Total: 85.95244998550305 dolares, 111650.0 pesos.
+ Precio del ticket: 1.1162655842273124 dolares.
+ Con un dolar MEP de 1379.6  [ + E] Ticket BHIP no cumple con la condición de compra (Relacion Dolar MEP = 7.248477819657872e-4)
+  [ + E] Dolar MEP: 1.0 AL30: 1379.6Compra de 73 de EDN a 1640.0 pesos.
+ con plazo t0 y validez 2025-04-09T11:34:15.011Z a las 10:34:20
+ Total: 86.77877645694404 dolares, 120450.0 pesos.
+ Precio del ticket: 1.188750362423891 dolares.
+ Con un dolar MEP de 1379.6Compra de 6 de MSTR a 17500.0 pesos.
+ con plazo t0 y validez 2025-04-09T11:34:23.903Z a las 10:34:26
+ Total: 76.10901710640766 dolares, 99000.0 pesos.
+ Precio del ticket: 12.684836184401277 dolares.Compra de 79 de TRAN a 1510.0 pesos.
+ con plazo t0 y validez 2025-04-09T12:34:52.547Z a las 11:34:54
+ Total: 86.32317823286779 dolares, 118500.0 pesos.
+ Precio del ticket: 1.092698458643896 dolares.
+ Con un dolar MEP de 1381.9Compra de 379 de BHIP a 316.0 pesos.
+ con plazo t0 y validez 2025-04-09T12:35:00.461Z a las 11:35:02
+ Total: 86.65552396043616 dolares, 119574.5 pesos.
+ Precio del ticket: 0.22864254343122997 dolares.
+ Con un dolar MEP de 1382.07Compra de 20 de TGSU2 a 5880.0 pesos.
+ con plazo t1 y validez 2025-04-09T12:45:31.310Z a las 11:45:32
+ Total: 85.19393210565207 dolares, 116600.0 pesos.
+ Precio del ticket: 4.259696605282603 dolares.
+ Con un dolar MEP de 1380.38Compra de 975 de COME a 123.0 pesos.
+ con plazo t1 y validez 2025-04-09T13:08:53.326Z a las 12:08:55
+ Total: 86.89021076808265 dolares, 124800.0 pesos.
+ Precio del ticket: 8.911816489034118e-2 dolares.
+ Con un dolar MEP de 1380.19Venta de 1 de MELI a 20750.0 pesos.
+ con plazo t1 y validez 2025-04-09T13:40:13.128Z a las 12:40:15
+ Total: 14.994399682046465 dolares, 20850.0 pesos.
+ Precio del ticket: 14.994399682046465 dolaresCompra de 36 de PAMP a 3310.0 pesos.
+ con plazo t1 y validez 2025-04-09T14:34:56.339Z a las 13:34:57
+ Total: 86.00319011497406 dolares, 118620.0 pesos.
+ Precio del ticket: 2.3889775031937237 dolares.
+ Con un dolar MEP de 1385.53
  Con un dolar MEP de 1.0

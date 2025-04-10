@@ -28,7 +28,7 @@ createOrdenRequest ticket cantidad = do
         , ordenSimbolo = ticketName ticket
         , ordenCantidad = Just opAmount
         , ordenPrecio = puntaVenta ticket
-        , ordenPlazo = "t0"
+        , ordenPlazo = "t1"
         , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
         , ordenTipoOrden = Just "precioLimite"
         , ordenMonto = Nothing
@@ -39,7 +39,7 @@ placeBuyOrder :: Connection -> ApiConfig -> Ticket -> IO Bool
 placeBuyOrder _ config ticket = do
     (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
     let logFileName = "logs/ordenes_ejecutadas.log"
-    if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 0
+    if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 1
     then do
         -- let operacionPesos = True
         --         let ticketName ticket = ticketName ticket ++ "D"
@@ -84,7 +84,7 @@ placeSellOrder :: Connection -> ApiConfig -> Ticket -> Double -> IO Bool
 placeSellOrder _ config ticket cantidad = do
     (symbolDolarMEP, standardDolarMEP) <- compareMEP config (ticketName ticket)
     let logFileName = "logs/ordenes_ejecutadas.log"
-    if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 0
+    if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 1
     then do
         -- let operacionPesos = True
         let cantidadVenta = cantidad * (0.82 :: Double)
