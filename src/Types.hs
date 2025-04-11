@@ -22,6 +22,7 @@ module Types
     , DolarMEP(..)
     , Operacion(..)
     , CotizacionesResponse(..)
+    , PuntaHistorial(..)
     , montoOperacion
     ) where
 
@@ -299,6 +300,16 @@ data Operacion = Operacion
     , operacionCantidad :: Int
     , operacionTipo :: String
     , operacionEstado :: String
+    } deriving (Show, Generic)
+
+-- Tipo para almacenar el historial de puntas de un ticket
+data PuntaHistorial = PuntaHistorial
+    { puntaHistorialTicket :: String
+    , puntaHistorialPrecioCompra :: Double
+    , puntaHistorialCantidadCompra :: Double
+    , puntaHistorialPrecioVenta :: Double
+    , puntaHistorialCantidadVenta :: Double
+    , puntaHistorialTimestamp :: UTCTime
     } deriving (Show, Generic)
 
 -- Configuración global

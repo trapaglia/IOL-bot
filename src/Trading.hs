@@ -4,13 +4,15 @@ module Trading
     ( processTicket
     , placeBuyOrder
     , placeSellOrder
+    , monitorPuntas
+    , monitorPuntasSymbols
     ) where
 
-import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), montoOperacion, DolarMEP(..))
+import Types (ApiConfig(..), Estado(..), Precios(..), Ticket(..), montoOperacion)
 import Database.SQLite.Simple (Connection)
-import Database (updateTicket)
-import Control.Monad (when)
-import Api (getDolarMEP, enviarOrdenCompra, enviarOrdenVenta, OrdenRequest(..))
+import Database (updateTicket, connectDatabase, getAllTickets)
+import Control.Monad (when, forM_)
+import Api (enviarOrdenCompra, enviarOrdenVenta, OrdenRequest(..), savePuntasHistorial)
 import Utils (getCurrentTimeArgentina)
 import Helper (getCantidadPortfolio, compareMEP)
 import Data.Time.Format (formatTime, defaultTimeLocale)
@@ -41,13 +43,6 @@ placeBuyOrder _ config ticket = do
     let logFileName = "logs/ordenes_ejecutadas.log"
     if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 1
     then do
-        -- let operacionPesos = True
-        --         let ticketName ticket = ticketName ticket ++ "D"
-        --         let symbolDolar = getCotizacion config (ticketName ticket)
-        --         let priceDolar = (puntaCompra ticket / standardDolarMEP) + 1.0
-        --         putStrLn $ "  [ + !] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ show (symbolDolarMEP/standardDolarMEP) ++ ")"
-        --         putStrLn $ "  [ + !] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
-
         let cantidadCompra = montoOperacion / puntaVenta ticket
         orden <- createOrdenRequest ticket cantidadCompra
         putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++ " pesos."
@@ -71,7 +66,6 @@ placeBuyOrder _ config ticket = do
             putStrLn "  [ - ! - ] Compra fallida"
             return False
     else do
-        -- let operacionPesos = False
         let ordenLog = "  [ + E] Ticket " ++ ticketName ticket ++ " no cumple con la condición de compra (Relacion Dolar MEP = " ++ 
                        show (symbolDolarMEP/standardDolarMEP) ++ ")\n" ++
                        "  [ + E] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
@@ -86,7 +80,6 @@ placeSellOrder _ config ticket cantidad = do
     let logFileName = "logs/ordenes_ejecutadas.log"
     if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 1
     then do
-        -- let operacionPesos = True
         let cantidadVenta = cantidad * (0.82 :: Double)
         orden <- createOrdenRequest ticket cantidadVenta
         putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++ " pesos."
@@ -109,13 +102,44 @@ placeSellOrder _ config ticket cantidad = do
             putStrLn "  [ - ! - ] Venta fallida"
             return False
     else do
-        -- let operacionPesos = False
         let ordenLog = "  [ + E] Ticket " ++ ticketName ticket ++ " no cumple con la condición de venta (Relacion Dolar MEP = " ++ 
                         show (symbolDolarMEP/standardDolarMEP) ++ ")\n" ++
                         "  [ + E] Dolar MEP: " ++ show symbolDolarMEP ++ " AL30: " ++ show standardDolarMEP
         appendFile logFileName ordenLog
         putStrLn ordenLog
         return False
+
+-- Función para monitorear y guardar las puntas de los tickets
+monitorPuntas :: ApiConfig -> IO ()
+monitorPuntas config = do
+    putStrLn "Iniciando monitoreo de puntas..."
+    conn <- connectDatabase
+    tickets <- getAllTickets conn
+    
+    -- Guardar puntas para cada ticket
+    forM_ tickets $ \ticket -> do
+        putStrLn $ "Obteniendo puntas para " ++ ticketName ticket
+        result <- savePuntasHistorial config (ticketName ticket)
+        case result of
+            Just _ -> putStrLn $ "Puntas guardadas correctamente para " ++ ticketName ticket
+            Nothing -> putStrLn $ "No se pudieron guardar las puntas para " ++ ticketName ticket
+    
+    putStrLn "Monitoreo de puntas completado"
+
+-- Función para monitorear puntas de un conjunto específico de símbolos
+monitorPuntasSymbols :: ApiConfig -> [String] -> IO ()
+monitorPuntasSymbols config symbols = do
+    putStrLn "Iniciando monitoreo de puntas para símbolos específicos..."
+    
+    -- Guardar puntas para cada símbolo
+    forM_ symbols $ \symbol -> do
+        putStrLn $ "Obteniendo puntas para " ++ symbol
+        result <- savePuntasHistorial config symbol
+        case result of
+            Just _ -> putStrLn $ "Puntas guardadas correctamente para " ++ symbol
+            Nothing -> putStrLn $ "No se pudieron guardar las puntas para " ++ symbol
+    
+    putStrLn "Monitoreo de puntas completado"
 
 -- Función para procesar un ticket según su estado y precios actuales
 processTicket :: Connection -> ApiConfig -> Ticket -> IO ()

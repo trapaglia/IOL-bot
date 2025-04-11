@@ -20,7 +20,11 @@ module Database
     , DBEstadoCuenta(..)
     , DBToken(..)
     , DBTicket(..)
+    , DBPuntaHistorial(..)
     , insertOperacion
+    , insertPuntaHistorial
+    , getLatestPuntasHistorial
+    , getPuntasHistorialByTicket
     , deleteTable
     ) where
 
@@ -78,6 +82,15 @@ data DBOperaciones = DBOperaciones
     , dbOperacionCantidad :: Int
     , dbOperacionTipo :: T.Text
     , dbOperacionEstado :: T.Text
+    } deriving (Show)
+
+data DBPuntaHistorial = DBPuntaHistorial
+    { dbPuntaTicket :: T.Text
+    , dbPuntaPrecioCompra :: Double
+    , dbPuntaCantidadCompra :: Double
+    , dbPuntaPrecioVenta :: Double
+    , dbPuntaCantidadVenta :: Double
+    , dbPuntaTimestamp :: UTCTime
     } deriving (Show)
 
 instance FromRow DBOperaciones where
@@ -138,6 +151,18 @@ instance ToRow DBTicket where
               , SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" $ dbLastUpdate t
               ]
 
+instance FromRow DBPuntaHistorial where
+    fromRow = DBPuntaHistorial <$> field <*> field <*> field <*> field <*> field <*> field
+
+instance ToRow DBPuntaHistorial where
+    toRow p = [ SQLText $ dbPuntaTicket p
+              , SQLFloat $ dbPuntaPrecioCompra p
+              , SQLFloat $ dbPuntaCantidadCompra p
+              , SQLFloat $ dbPuntaPrecioVenta p
+              , SQLFloat $ dbPuntaCantidadVenta p
+              , SQLText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" $ dbPuntaTimestamp p
+              ]
+
 -- Conexión a la base de datos
 connectDatabase :: IO Connection
 connectDatabase = do
@@ -192,6 +217,14 @@ createTablesIfNotExist conn = do
         \tipo TEXT NOT NULL,\
         \estado TEXT NOT NULL)"
         
+    execute_ conn "CREATE TABLE IF NOT EXISTS puntas_historial (\
+        \ticket TEXT NOT NULL,\
+        \precio_compra REAL NOT NULL,\
+        \cantidad_compra REAL NOT NULL,\
+        \precio_venta REAL NOT NULL,\
+        \cantidad_venta REAL NOT NULL,\
+        \timestamp DATETIME NOT NULL,\
+        \PRIMARY KEY (ticket, timestamp))"
 
 -- Inicialización de la base de datos (mantiene compatibilidad hacia atrás)
 initializeDatabase :: IO Connection
@@ -299,6 +332,17 @@ insertTicket conn ticket = do
         \VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(?))"
         (ticketToDBTicket ticket)
 
+insertPuntaHistorial :: Connection -> PuntaHistorial -> IO ()
+insertPuntaHistorial conn punta = do
+    execute conn "INSERT INTO puntas_historial (ticket, precio_compra, cantidad_compra, precio_venta, cantidad_venta, timestamp) VALUES (?, ?, ?, ?, ?, ?)"
+        (DBPuntaHistorial
+            (T.pack $ puntaHistorialTicket punta)
+            (puntaHistorialPrecioCompra punta)
+            (puntaHistorialCantidadCompra punta)
+            (puntaHistorialPrecioVenta punta)
+            (puntaHistorialCantidadVenta punta)
+            (puntaHistorialTimestamp punta))
+
 -- Funciones de consulta
 getLatestTenencias :: Connection -> IO [DBTenencia]
 getLatestTenencias conn = do
@@ -351,6 +395,36 @@ getAllTickets :: Connection -> IO [Ticket]
 getAllTickets conn = do
     results <- query_ conn "SELECT * FROM tickets" :: IO [DBTicket]
     return $ map dbTicketToTicket results
+
+getLatestPuntasHistorial :: Connection -> Int -> IO [PuntaHistorial]
+getLatestPuntasHistorial conn limit = do
+    rows <- query conn "SELECT ticket, precio_compra, cantidad_compra, precio_venta, cantidad_venta, timestamp FROM puntas_historial ORDER BY timestamp DESC LIMIT ?" (Only limit) :: IO [DBPuntaHistorial]
+    return $ map dbToPuntaHistorial rows
+  where
+    dbToPuntaHistorial :: DBPuntaHistorial -> PuntaHistorial
+    dbToPuntaHistorial db = PuntaHistorial
+        { puntaHistorialTicket = T.unpack $ dbPuntaTicket db
+        , puntaHistorialPrecioCompra = dbPuntaPrecioCompra db
+        , puntaHistorialCantidadCompra = dbPuntaCantidadCompra db
+        , puntaHistorialPrecioVenta = dbPuntaPrecioVenta db
+        , puntaHistorialCantidadVenta = dbPuntaCantidadVenta db
+        , puntaHistorialTimestamp = dbPuntaTimestamp db
+        }
+
+getPuntasHistorialByTicket :: Connection -> String -> Int -> IO [PuntaHistorial]
+getPuntasHistorialByTicket conn ticket limit = do
+    rows <- query conn "SELECT ticket, precio_compra, cantidad_compra, precio_venta, cantidad_venta, timestamp FROM puntas_historial WHERE ticket = ? ORDER BY timestamp DESC LIMIT ?" (T.pack ticket, limit) :: IO [DBPuntaHistorial]
+    return $ map dbToPuntaHistorial rows
+  where
+    dbToPuntaHistorial :: DBPuntaHistorial -> PuntaHistorial
+    dbToPuntaHistorial db = PuntaHistorial
+        { puntaHistorialTicket = T.unpack $ dbPuntaTicket db
+        , puntaHistorialPrecioCompra = dbPuntaPrecioCompra db
+        , puntaHistorialCantidadCompra = dbPuntaCantidadCompra db
+        , puntaHistorialPrecioVenta = dbPuntaPrecioVenta db
+        , puntaHistorialCantidadVenta = dbPuntaCantidadVenta db
+        , puntaHistorialTimestamp = dbPuntaTimestamp db
+        }
 
 updateTicket :: Connection -> Ticket -> IO ()
 updateTicket = insertTicket -- Using REPLACE INTO in insertTicket makes this equivalent

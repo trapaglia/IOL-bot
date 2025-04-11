@@ -13,7 +13,7 @@ import Types ( ApiConfig(..), Precios(..), Ticket(..)
             )
 import Api (getCredentials, getAllCotizaciones, getCEDEARsCotizaciones, getEstadoCuenta)
 import Database (insertEstadoCuenta, updateTicket, connectDatabase, getAllTickets, getLastEstadoCuenta, DBEstadoCuenta(..))
-import Trading (processTicket)
+import Trading (processTicket, monitorPuntas, monitorPuntasSymbols)
 import Database (deleteTable)
 import Database.SQLite.Simple (Connection, close)
 import Control.Monad (forM_, forever, when)
@@ -76,9 +76,16 @@ updateAllTickets conn config verbose = do
                             Nothing -> when verbose $ putStrLn $ "  No hay puntas disponibles para " ++ ticketName ticket
                     Nothing -> when verbose $ putStrLn $ "  No se encontró cotización para " ++ ticketName ticket
 
+-- Configuración del bucle principal
+data LoopConfig = LoopConfig
+    { monitorearPuntas :: Bool
+    , simbolosMonitoreo :: [String]
+    , monitorearTodos :: Bool
+    }
+
 -- Bucle principal del programa
-mainLoop :: Connection -> ApiConfig -> MVar () -> IORef Int -> IO ()
-mainLoop conn config stopMVar iterationRef = do
+mainLoop :: Connection -> ApiConfig -> MVar () -> IORef Int -> LoopConfig -> IO ()
+mainLoop conn config stopMVar iterationRef loopConfig = do
     iteration <- readIORef iterationRef
     putStrLn $ "\nIteración " ++ show iteration
     
@@ -144,6 +151,18 @@ mainLoop conn config stopMVar iterationRef = do
                         putStrLn $ "Disponible: " ++ show (cuentaDisponible cuenta)
                     Nothing -> putStrLn "No se encontró la cuenta en dólares en la base de datos"
 
+    -- Monitoreo de puntas si está habilitado
+    when (monitorearPuntas loopConfig) $ do
+        putStrLn "\nMonitoreando puntas..."
+        if monitorearTodos loopConfig
+        then do
+            putStrLn "Monitoreando puntas de todos los tickets..."
+            monitorPuntas config
+        else do
+            let symbols = simbolosMonitoreo loopConfig
+            putStrLn $ "Monitoreando puntas de símbolos específicos: " ++ show symbols
+            monitorPuntasSymbols config symbols
+
     putStrLn "\nContenido del archivo logs/ordenes_ejecutadas.log:"
     cont <- readFile "logs/ordenes_ejecutadas.log"
     putStrLn cont
@@ -158,8 +177,8 @@ mainLoop conn config stopMVar iterationRef = do
             modifyIORef' iterationRef (+1)
 
 -- Función para ejecutar el bucle principal con manejo de interrupciones
-runMainLoop :: Connection -> ApiConfig -> IO ()
-runMainLoop conn config = do
+runMainLoop :: Connection -> ApiConfig -> LoopConfig -> IO ()
+runMainLoop conn config loopConfig = do
     putStrLn "\nIniciando bucle principal... (Presiona Ctrl+C para detener)"
     stopMVar <- newEmptyMVar
     iterationRef <- newIORef 0  -- Crear referencia para la iteración
@@ -174,7 +193,7 @@ runMainLoop conn config = do
     
     -- Ejecutar el bucle principal con manejo de excepciones
     catch 
-        (forever $ mainLoop conn config stopMVar iterationRef)
+        (forever $ mainLoop conn config stopMVar iterationRef loopConfig)
         (\e -> do
             case e of
                 -- Si es una interrupción por Ctrl+C
@@ -200,43 +219,54 @@ main = do
     (maybeUsername, maybePassword) <- getCredentials
     case (maybeUsername, maybePassword) of
         (Just user, Just pass) -> do
-            putStrLn "Credentials OK!\n"
+            putStrLn "Credenciales cargadas correctamente"
             let config = ApiConfig user pass
             
-            -- maybeTicket <- getTicket conn "METR"
-            -- when (maybeTicket == Nothing) $ do
-            --     putStrLn "Creando ticket de ejemplo..."
-            --     now <- getCurrentTimeArgentina
-            --     let testTicket = Ticket
-            --             { ticketName = "METR"
-            --             , estado = SecondBuy
-            --             , precios = Precios
-            --                 { compra1 = 1820.0
-            --                 , compra2 = 1820.0
-            --                 , venta1 = 999999.0
-            --                 , venta2 = 999999.0
-            --                 , takeProfit = 999999.0
-            --                 , stopLoss = 10.0
-            --                 }
-            --             , puntaCompra = 0.0
-            --             , puntaVenta = 0.0
-            --             , lastUpdate = now
-            --             }
-            --     insertTicket conn testTicket
-
-            -- putStrLn "Obteniendo portafolio..."
-            -- maybePortfolio <- getPortfolio config
-            -- case maybePortfolio of
-            --     Just portfolio -> do
-            --         putStrLn "Portafolio obtenido correctamente"
-            --         let tenencias = map (\asset -> (pack $ tituloSimbolo $ assetTitulo asset, round $ assetCantidad asset, assetUltimoPrecio asset)) (portfolioActivos portfolio)
-            --         mapM_ (\(symbol, cantidad, precio) -> insertTenencia conn symbol cantidad precio) tenencias
-            --     Nothing -> putStrLn "Error al obtener el portafolio"
-
-            -- Iniciar bucle principal con manejo de interrupciones
-
-            runMainLoop conn config
+            -- Menú de opciones
+            putStrLn "\nSelecciona una opción:"
+            putStrLn "1. Iniciar bucle principal (sin monitoreo de puntas)"
+            putStrLn "2. Iniciar bucle principal con monitoreo de puntas (todos los tickets)"
+            putStrLn "3. Iniciar bucle principal con monitoreo de puntas (símbolos específicos)"
+            putStrLn "4. Actualizar tickets una vez"
+            putStrLn "5. Monitorear puntas una vez (todos los tickets)"
+            putStrLn "6. Monitorear puntas una vez (símbolos específicos)"
+            putStrLn "7. Salir"
             
-        _ -> do
-            putStrLn "Error: Credenciales no encontradas en .env"
+            putStr "Opción: "
+            option <- getLine
+            
+            case option of
+                "1" -> do
+                    let loopConfig = LoopConfig False [] False
+                    runMainLoop conn config loopConfig
+                "2" -> do
+                    let loopConfig = LoopConfig True [] True
+                    runMainLoop conn config loopConfig
+                "3" -> do
+                    putStrLn "Ingresa los símbolos separados por comas (ej: AL30,GD30,GGAL):"
+                    symbolsInput <- getLine
+                    let symbols = words $ map (\c -> if c == ',' then ' ' else c) symbolsInput
+                    putStrLn $ "Monitoreando puntas de: " ++ show symbols
+                    let loopConfig = LoopConfig True symbols False
+                    runMainLoop conn config loopConfig
+                "4" -> do
+                    updateAllTickets conn config True
+                    putStrLn "Tickets actualizados. Saliendo..."
+                "5" -> do
+                    putStrLn "Monitoreando puntas de todos los tickets..."
+                    monitorPuntas config
+                    putStrLn "Monitoreo completado. Saliendo..."
+                "6" -> do
+                    putStrLn "Ingresa los símbolos separados por comas (ej: AL30,GD30,GGAL):"
+                    symbolsInput <- getLine
+                    let symbols = words $ map (\c -> if c == ',' then ' ' else c) symbolsInput
+                    putStrLn $ "Monitoreando puntas de: " ++ show symbols
+                    monitorPuntasSymbols config symbols
+                    putStrLn "Monitoreo completado. Saliendo..."
+                "7" -> putStrLn "Saliendo..."
+                _ -> do
+                    putStrLn "Opción no válida. Saliendo..."
+            
+            -- Cerrar conexión a la base de datos
             close conn
+        _ -> putStrLn "Error al cargar las credenciales. Verifica el archivo .env"

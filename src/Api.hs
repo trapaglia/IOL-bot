@@ -14,12 +14,14 @@ module Api
     , getPortfolio
     , getAllCotizaciones
     , getCEDEARsCotizaciones
+    , savePuntasHistorial
+    , savePuntasInstrumentoHistorial
     , OrdenRequest(..)
     ) where
 
 import System.Environment (lookupEnv)
 import qualified Configuration.Dotenv as Dotenv
-import Data.Aeson (decode, encode)
+import Data.Aeson (decode, encode, eitherDecode)
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Network.HTTP.Client
@@ -31,6 +33,7 @@ import Data.Maybe (isJust)
 import System.IO.Unsafe (unsafePerformIO)
 import Types
 import Utils (getCurrentTimeArgentina)
+import Database (connectDatabase, insertPuntaHistorial)
 
 -- Variable global para almacenar el token
 {-# NOINLINE globalToken #-}
@@ -310,3 +313,64 @@ getCEDEARsCotizaciones config = do
                 Nothing -> do
                     putStrLn "Error al decodificar la respuesta de CEDEARs"
                     return Nothing
+
+-- Guardar las puntas de un ticket en la base de datos
+savePuntasHistorial :: ApiConfig -> String -> IO (Maybe PuntaHistorial)
+savePuntasHistorial config symbol = do
+    cotizacion <- getCotizacion config symbol
+    case cotizacion of
+        Nothing -> do
+            putStrLn $ "No se pudo obtener la cotización para " ++ symbol
+            return Nothing
+        Just cot -> do
+            -- Verificar si hay puntas disponibles
+            case puntas cot of
+                [] -> do
+                    putStrLn $ "No hay puntas disponibles para " ++ symbol
+                    return Nothing
+                (punta:_) -> do
+                    -- Crear un registro de historial de puntas
+                    currentTime <- getCurrentTimeArgentina
+                    let puntaHistorial = PuntaHistorial
+                            { puntaHistorialTicket = symbol
+                            , puntaHistorialPrecioCompra = puntaPrecioCompra punta
+                            , puntaHistorialCantidadCompra = 0.0  -- La API no proporciona esta información
+                            , puntaHistorialPrecioVenta = puntaPrecioVenta punta
+                            , puntaHistorialCantidadVenta = 0.0  -- La API no proporciona esta información
+                            , puntaHistorialTimestamp = currentTime
+                            }
+                    
+                    -- Guardar en la base de datos
+                    conn <- connectDatabase
+                    insertPuntaHistorial conn puntaHistorial
+                    putStrLn $ "Puntas guardadas para " ++ symbol ++ " - Compra: " ++ show (puntaHistorialPrecioCompra puntaHistorial) ++ " - Venta: " ++ show (puntaHistorialPrecioVenta puntaHistorial)
+                    return $ Just puntaHistorial
+
+-- Función para guardar las puntas de un instrumento (con PuntaInstrumento)
+savePuntasInstrumentoHistorial :: Instrumento -> IO (Maybe PuntaHistorial)
+savePuntasInstrumentoHistorial instrumento = do
+    case instPuntas instrumento of
+        Nothing -> do
+            putStrLn $ "No hay puntas disponibles para " ++ instSimbolo instrumento
+            return Nothing
+        Just puntaInst -> do
+            -- Crear un registro de historial de puntas
+            currentTime <- getCurrentTimeArgentina
+            let puntaHistorial = PuntaHistorial
+                    { puntaHistorialTicket = instSimbolo instrumento
+                    , puntaHistorialPrecioCompra = precioCompra puntaInst
+                    , puntaHistorialCantidadCompra = cantidadCompra puntaInst
+                    , puntaHistorialPrecioVenta = precioVenta puntaInst
+                    , puntaHistorialCantidadVenta = cantidadVenta puntaInst
+                    , puntaHistorialTimestamp = currentTime
+                    }
+            
+            -- Guardar en la base de datos
+            conn <- connectDatabase
+            insertPuntaHistorial conn puntaHistorial
+            putStrLn $ "Puntas guardadas para " ++ instSimbolo instrumento ++ 
+                       " - Compra: " ++ show (puntaHistorialPrecioCompra puntaHistorial) ++ 
+                       " (" ++ show (puntaHistorialCantidadCompra puntaHistorial) ++ ")" ++
+                       " - Venta: " ++ show (puntaHistorialPrecioVenta puntaHistorial) ++
+                       " (" ++ show (puntaHistorialCantidadVenta puntaHistorial) ++ ")"
+            return $ Just puntaHistorial
