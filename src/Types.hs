@@ -43,6 +43,16 @@ data AssetTitle = AssetTitle
 
 instance FromJSON AssetTitle where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 6 s of  -- quita el prefijo "titulo"
+            "Simbolo" -> "simbolo"
+            "Descripcion" -> "descripcion"
+            "Pais" -> "pais"
+            "Mercado" -> "mercado"
+            "Tipo" -> "tipo"
+            "Plazo" -> "plazo"
+            "Moneda" -> "moneda"
+            x -> x
+        }
 
 data AssetParking = AssetParking
     { disponibleInmediato :: Double
@@ -67,6 +77,20 @@ data PortfolioAsset = PortfolioAsset
 
 instance FromJSON PortfolioAsset where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 5 s of  -- quita el prefijo "asset"
+            "Cantidad" -> "cantidad"
+            "Comprometido" -> "comprometido"
+            "PuntosVariacion" -> "puntosVariacion"
+            "VariacionDiaria" -> "variacionDiaria"
+            "UltimoPrecio" -> "ultimoPrecio"
+            "Ppc" -> "ppc"
+            "GananciaPorcentaje" -> "gananciaPorcentaje"
+            "GananciaDinero" -> "gananciaDinero"
+            "Valorizado" -> "valorizado"
+            "Titulo" -> "titulo"
+            "Parking" -> "parking"
+            x -> x
+        }
 
 data PortfolioResponse = PortfolioResponse
     { portfolioPais :: String
@@ -135,6 +159,26 @@ data Instrumento = Instrumento
 
 instance FromJSON Instrumento where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 4 s of  -- quita el prefijo "inst"
+            "Simbolo" -> "simbolo"
+            "Descripcion" -> "descripcion"
+            "Puntas" -> "puntas"
+            "UltimoPrecio" -> "ultimoPrecio"
+            "VariacionPorcentual" -> "variacionPorcentual"
+            "Apertura" -> "apertura"
+            "Maximo" -> "maximo"
+            "Minimo" -> "minimo"
+            "UltimoCierre" -> "ultimoCierre"
+            "Volumen" -> "volumen"
+            "CantidadOperaciones" -> "cantidadOperaciones"
+            "Fecha" -> "fecha"
+            "TipoOpcion" -> "tipoOpcion"
+            "PrecioEjercicio" -> "precioEjercicio"
+            "FechaVencimiento" -> "fechaVencimiento"
+            "Mercado" -> "mercado"
+            "Moneda" -> "moneda"
+            x -> x
+        }
 
 data CotizacionDetalle = CotizacionDetalle
     { ultimoPrecio :: Double
@@ -150,6 +194,10 @@ newtype CotizacionesResponse = CotizacionesResponse
 
 instance FromJSON CotizacionesResponse where
     parseJSON = genericParseJSON defaultOptions
+        { fieldLabelModifier = \s -> case s of
+            "titulos" -> "titulos"
+            x -> x
+        }
 
 -- Configuración para las llamadas a la API
 data ApiConfig = ApiConfig 
@@ -227,6 +275,19 @@ data OrdenRequest = OrdenRequest
 
 instance ToJSON OrdenRequest where
     toJSON = genericToJSON defaultOptions
+        { fieldLabelModifier = \s -> case drop 5 s of  -- quita el prefijo "orden"
+            "Mercado" -> "mercado"
+            "Simbolo" -> "simbolo"
+            "Cantidad" -> "cantidad"
+            "Precio" -> "precio"
+            "Plazo" -> "plazo"
+            "Validez" -> "validez"
+            "TipoOrden" -> "tipoOrden"
+            "Monto" -> "monto"
+            "IdFuente" -> "idFuente"
+            x -> x
+        , omitNothingFields = True  -- omite campos que son Nothing
+        }
 
 -- Tipo para operaciones
 data Operacion = Operacion
