@@ -314,7 +314,7 @@ data PuntaHistorial = PuntaHistorial
 
 -- Configuración global
 montoOperacion :: Double
-montoOperacion = 120000.0  -- Valor inicial, ajustar según necesidad
+montoOperacion = 220000.0  -- Valor inicial, ajustar según necesidad
 
 -- Tipo para la cotización del dólar MEP
 newtype DolarMEP = DolarMEP Double

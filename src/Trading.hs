@@ -20,8 +20,8 @@ import Data.Time (addUTCTime)
 import Data.Maybe (fromMaybe)
 
 
-createOrdenRequest :: Ticket -> Double -> IO OrdenRequest
-createOrdenRequest ticket cantidad = do
+createOrdenRequest :: Ticket -> Double -> Bool -> IO OrdenRequest
+createOrdenRequest ticket cantidad isCompra = do
     currentTime <- getCurrentTimeArgentina
     let amount = floor cantidad :: Int
     let opAmount = if amount > 0 then amount else 1
@@ -29,7 +29,7 @@ createOrdenRequest ticket cantidad = do
         { ordenMercado = "bCBA"
         , ordenSimbolo = ticketName ticket
         , ordenCantidad = Just opAmount
-        , ordenPrecio = puntaVenta ticket
+        , ordenPrecio = if isCompra then puntaVenta ticket else puntaCompra ticket
         , ordenPlazo = "t1"
         , ordenValidez = formatTime defaultTimeLocale "%FT%T.%3qZ" (addUTCTime 3600 currentTime)
         , ordenTipoOrden = Just "precioLimite"
@@ -44,7 +44,7 @@ placeBuyOrder _ config ticket = do
     if (symbolDolarMEP > standardDolarMEP * 0.9) || symbolDolarMEP == 1
     then do
         let cantidadCompra = montoOperacion / puntaVenta ticket
-        orden <- createOrdenRequest ticket cantidadCompra
+        orden <- createOrdenRequest ticket cantidadCompra True
         putStrLn $ "  [ + ! + ] Comprando " ++ show (ordenCantidad orden) ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaVenta ticket) ++ " pesos."
         putStrLn $ " [I] Total gastado " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaVenta ticket) ++ " pesos."
         rsp <- enviarOrdenCompra config orden
@@ -81,7 +81,7 @@ placeSellOrder _ config ticket cantidad = do
     if (symbolDolarMEP < standardDolarMEP * 1.1) || symbolDolarMEP == 1
     then do
         let cantidadVenta = cantidad * (0.82 :: Double)
-        orden <- createOrdenRequest ticket cantidadVenta
+        orden <- createOrdenRequest ticket cantidadVenta False
         putStrLn $ "  [ + ! + ] Vendiendo " ++ show cantidadVenta ++ " de " ++ ticketName ticket ++ " a " ++ show (puntaCompra ticket) ++ " pesos."
         putStrLn $ " [I] Total recibido " ++ show (fromIntegral (fromMaybe 0 (ordenCantidad orden)) * puntaCompra ticket) ++ " pesos."
         rsp <- enviarOrdenVenta config orden
