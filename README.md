@@ -69,6 +69,9 @@ El bot utiliza SQLite para almacenar:
 - Cabal
 - SQLite3
 
+sudo apt install ghc cabal-install sqlite3 libsqlite3-dev
+
+
 ## Instalación
 
 1. Clonar el repositorio
